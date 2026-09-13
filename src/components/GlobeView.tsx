@@ -116,7 +116,7 @@ export function GlobeView({ ls, sunFixed, approach, className, onEnterSurface }:
       metalness: 0.02,
       bumpScale: 0.06,
       emissive: new THREE.Color(0xffffff),
-      emissiveIntensity: 0.06,
+      emissiveIntensity: 0.12,
     });
     const mars = new THREE.Mesh(new THREE.SphereGeometry(1, 96, 64), marsMat);
     marsGroup.add(mars);
@@ -223,11 +223,11 @@ export function GlobeView({ ls, sunFixed, approach, className, onEnterSurface }:
 
     const sun = new THREE.DirectionalLight(0xfff2dc, 2.4);
     scene.add(sun);
-    const fill = new THREE.AmbientLight(0x120e0a, 0.03);
+    const fill = new THREE.AmbientLight(0x1a1410, 0.06);
     scene.add(fill);
-    const rim = new THREE.HemisphereLight(0xc9a078, 0x050403, 0.1);
+    const rim = new THREE.HemisphereLight(0xc9a078, 0x080605, 0.16);
     scene.add(rim);
-    const portraitSun = new THREE.Vector3(0.12, 0.88, 0.42).normalize();
+    const portraitSun = new THREE.Vector3(0.1, 0.7, 0.64).normalize();
 
     const userYaw = { current: 0 };
     const targetYaw = { current: 0 };

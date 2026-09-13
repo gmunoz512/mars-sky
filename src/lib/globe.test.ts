@@ -28,8 +28,8 @@ describe("orbitCameraDistance", () => {
     const ang = sphereAngularDiameterDeg(d);
     const narrow = narrowerFovDeg(phone, ORBIT_FOV_DEG);
     expect(d).toBeGreaterThan(8);
-    expect(ang).toBeLessThan(narrow * 0.72);
-    expect(ang).toBeGreaterThan(narrow * 0.38);
+    expect(ang).toBeLessThan(narrow * 0.78);
+    expect(ang).toBeGreaterThan(narrow * 0.42);
     // The old fixed dist ≈ 3.35 cropped the globe to a surface patch on phones.
     expect(sphereAngularDiameterDeg(3.35)).toBeGreaterThan(narrow);
   });

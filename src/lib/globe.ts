@@ -47,7 +47,7 @@ export function yawToFaceCamera(v: Vec3): number {
  * Fraction of the *shorter* viewport axis the globe should fill.
  * Small enough that a phone still shows a complete sphere in black space.
  */
-export const ORBIT_FILL = 0.56;
+export const ORBIT_FILL = 0.64;
 export const ORBIT_FOV_DEG = 36;
 
 /** Narrower of vertical FOV and the derived horizontal FOV, in degrees. */
