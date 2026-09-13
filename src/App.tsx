@@ -86,20 +86,21 @@ export default function App() {
         </div>
       </header>
 
-      <div className="pointer-events-none absolute inset-x-0 bottom-0 z-10 bg-gradient-to-t from-dusk/90 via-dusk/35 to-transparent px-5 pb-5 pt-20 sm:px-8 sm:pb-7">
+      <div className="pointer-events-none absolute inset-x-0 bottom-0 z-10 bg-gradient-to-t from-dusk/65 via-dusk/18 to-transparent px-5 pb-5 pt-10 sm:px-8 sm:pb-7">
         <div className="flex flex-col gap-6 sm:flex-row sm:items-end sm:justify-between">
           <div className="pointer-events-auto w-full max-w-md">
             <DatePicker value={date} onChange={onDate} compact />
             <p className="mt-3 text-[11px] leading-relaxed text-mute">
               {onSurface
-                ? "Local true solar midnight. Drag to look. Same IAU figures, from Mars."
-                : "Enter a birthday to stand on Jezero and look up."}{" "}
+                ? "Local true solar midnight. Drag to look. Jezero-like ground is a schematic bowl, not a rover panorama."
+                : "Enter a birthday to stand on Jezero and look out."}{" "}
               <span className="text-ink/55">{formatUtc(sky.utc)}</span>
             </p>
           </div>
           <p className="max-w-sm text-[10px] leading-relaxed text-mute/90 sm:text-right">
             {onSurface ? `${bodyLine(sky)}. ` : ""}
             Ls {sky.ls.toFixed(1)}° · {sky.season}. Globe is shaded, not a mosaic.
+            Terrain colors follow Perseverance public-domain stills (PIA24487).
             Phobos/Deimos are mean orbits, not Horizons. {JEZERO.latitudeDeg.toFixed(2)}°N{" "}
             {JEZERO.longitudeEastDeg.toFixed(2)}°E.
           </p>

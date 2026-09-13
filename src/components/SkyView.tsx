@@ -1,6 +1,12 @@
 import { useEffect, useRef } from "react";
 import * as THREE from "three";
 import type { SkyLabel, SkyModel, SkyStar } from "../lib/sky";
+import {
+  FLOOR_BOULDERS,
+  buildGritTexture,
+  buildJezeroTerrainGeometry,
+  sampleJezeroHeight,
+} from "../lib/terrain";
 
 type Mode = "locked" | "look";
 
@@ -14,6 +20,14 @@ type LabelEl = {
   el: HTMLDivElement;
   label: SkyLabel;
 };
+
+/** Stars / lines / bodies sit outside the terrain so the rim can occlude them. */
+const SKY_RADIUS = 48;
+const CAM_X = 1.55;
+const CAM_Y = 0.2;
+const CAM_Z = 0.42;
+const DEFAULT_YAW = 0.22;
+const DEFAULT_PITCH = 0.09;
 
 const MAG_BINS: { max: number; size: number }[] = [
   { max: 0.5, size: 8.4 },
@@ -39,9 +53,9 @@ function fillStarGeometry(stars: SkyStar[]): THREE.BufferGeometry {
   const pos = new Float32Array(stars.length * 3);
   const col = new Float32Array(stars.length * 3);
   stars.forEach((s, i) => {
-    pos[i * 3] = s.dir.x;
-    pos[i * 3 + 1] = s.dir.y;
-    pos[i * 3 + 2] = s.dir.z;
+    pos[i * 3] = s.dir.x * SKY_RADIUS;
+    pos[i * 3 + 1] = s.dir.y * SKY_RADIUS;
+    pos[i * 3 + 2] = s.dir.z * SKY_RADIUS;
     const c = bvToColor(s.bv);
     col[i * 3] = c.r;
     col[i * 3 + 1] = c.g;
@@ -71,23 +85,23 @@ export function SkyView({ sky, mode, className }: Props) {
     host.appendChild(renderer.domElement);
 
     const scene = new THREE.Scene();
-    const camera = new THREE.PerspectiveCamera(58, 1, 0.05, 20);
+    const camera = new THREE.PerspectiveCamera(62, 1, 0.04, 90);
     camera.up.set(0, 1, 0);
 
     // Azimuth 0 = north (Mars NCP). Elevation in radians above the horizon.
-    const yaw = { current: 0.12 };
-    const pitch = { current: 0.72 };
-    const targetYaw = { current: 0.12 };
-    const targetPitch = { current: 0.72 };
+    const yaw = { current: DEFAULT_YAW };
+    const pitch = { current: DEFAULT_PITCH };
+    const targetYaw = { current: DEFAULT_YAW };
+    const targetPitch = { current: DEFAULT_PITCH };
 
     const look = () => {
       const el = pitch.current;
       const az = yaw.current;
-      camera.position.set(0, 0.02, 0);
+      camera.position.set(CAM_X, CAM_Y, CAM_Z);
       camera.lookAt(
-        Math.sin(az) * Math.cos(el),
-        Math.sin(el) + 0.02,
-        -Math.cos(az) * Math.cos(el),
+        CAM_X + Math.sin(az) * Math.cos(el),
+        CAM_Y + Math.sin(el),
+        CAM_Z - Math.cos(az) * Math.cos(el),
       );
     };
 
@@ -99,10 +113,12 @@ export function SkyView({ sky, mode, className }: Props) {
           sizeAttenuation: false,
           vertexColors: true,
           transparent: true,
+          depthTest: true,
           depthWrite: false,
           blending: THREE.AdditiveBlending,
         }),
       );
+      points.renderOrder = 2;
       scene.add(points);
       return points;
     });
@@ -112,64 +128,83 @@ export function SkyView({ sky, mode, className }: Props) {
       color: 0xb7c4d4,
       transparent: true,
       opacity: 0.32,
+      depthTest: true,
       depthWrite: false,
     });
-    scene.add(new THREE.LineSegments(lineGeo, lineMat));
+    const lines = new THREE.LineSegments(lineGeo, lineMat);
+    lines.renderOrder = 2;
+    scene.add(lines);
 
     const bodyGroup = new THREE.Group();
+    bodyGroup.renderOrder = 2;
     scene.add(bodyGroup);
 
     const skyDome = makeMartianSkyDome();
     scene.add(skyDome);
 
-    const ground = new THREE.Mesh(
-      new THREE.CircleGeometry(8, 96),
-      new THREE.MeshBasicMaterial({ color: 0x2a160e }),
+    // Unlit fill — midnight Sun is below the horizon; keep the crater readable
+    // (not a photometric night exposure). Hue from Perseverance public stills.
+    const grit = buildGritTexture();
+    const terrainGeo = buildJezeroTerrainGeometry();
+    const terrainMat = new THREE.MeshBasicMaterial({
+      vertexColors: true,
+      map: grit,
+    });
+    const terrain = new THREE.Mesh(terrainGeo, terrainMat);
+    scene.add(terrain);
+
+    const farFloor = new THREE.Mesh(
+      new THREE.CircleGeometry(42, 72),
+      new THREE.MeshBasicMaterial({ color: 0xc47a4a, map: grit }),
     );
-    ground.rotation.x = -Math.PI / 2;
-    ground.position.y = -0.012;
-    scene.add(ground);
+    farFloor.rotation.x = -Math.PI / 2;
+    farFloor.position.y = -0.18;
+    scene.add(farFloor);
+
+    const boulderGeo = new THREE.DodecahedronGeometry(1, 0);
+    const boulderMat = new THREE.MeshBasicMaterial({
+      color: 0xb4683c,
+      map: grit,
+    });
+    for (const b of FLOOR_BOULDERS) {
+      const mesh = new THREE.Mesh(boulderGeo, boulderMat);
+      mesh.position.set(b.x, sampleJezeroHeight(b.x, b.z) + b.r * 0.45, b.z);
+      mesh.scale.set(b.r, b.r * 0.72, b.r * 1.1);
+      mesh.rotation.set(b.x * 0.4, b.z * 0.3, b.r);
+      scene.add(mesh);
+    }
 
     const haze = new THREE.Mesh(
-      new THREE.RingGeometry(0.9, 4.2, 96),
+      new THREE.RingGeometry(8, 20, 96),
       new THREE.MeshBasicMaterial({
         color: 0xd49258,
         transparent: true,
-        opacity: 0.16,
+        opacity: 0.14,
         side: THREE.DoubleSide,
         depthWrite: false,
       }),
     );
     haze.rotation.x = -Math.PI / 2;
-    haze.position.y = -0.006;
+    haze.position.y = 0.55;
+    haze.renderOrder = 1;
     scene.add(haze);
 
     const twilight = new THREE.Mesh(
-      new THREE.RingGeometry(0.86, 1.55, 96),
+      new THREE.RingGeometry(7.2, 14, 96),
       new THREE.MeshBasicMaterial({
         color: 0xf0b478,
         transparent: true,
-        opacity: 0.2,
+        opacity: 0.12,
         side: THREE.DoubleSide,
         depthWrite: false,
       }),
     );
     twilight.rotation.x = -Math.PI / 2;
-    twilight.position.y = 0.01;
+    twilight.position.y = 0.72;
+    twilight.renderOrder = 1;
     scene.add(twilight);
 
-    scene.add(
-      new THREE.LineLoop(
-        new THREE.BufferGeometry().setFromPoints(
-          Array.from({ length: 128 }, (_, i) => {
-            const a = (i / 128) * Math.PI * 2;
-            return new THREE.Vector3(Math.sin(a) * 0.995, 0, Math.cos(a) * 0.995);
-          }),
-        ),
-        new THREE.LineBasicMaterial({ color: 0xc47a4a, transparent: true, opacity: 0.28 }),
-      ),
-    );
-
+    const compassSprites: THREE.Sprite[] = [];
     for (const c of [
       { t: "N", a: 0 },
       { t: "E", a: 90 },
@@ -177,10 +212,13 @@ export function SkyView({ sky, mode, className }: Props) {
       { t: "W", a: 270 },
     ]) {
       const az = (c.a * Math.PI) / 180;
+      const x = Math.sin(az) * 7.1;
+      const z = -Math.cos(az) * 7.1;
       const sprite = makeTextSprite(c.t);
-      sprite.position.set(Math.sin(az) * 0.92, 0.028, -Math.cos(az) * 0.92);
-      sprite.scale.setScalar(0.08);
+      sprite.position.set(x, sampleJezeroHeight(x, z) + 0.28, z);
+      sprite.scale.set(1.15, 0.58, 1);
       scene.add(sprite);
+      compassSprites.push(sprite);
     }
 
     const labels: LabelEl[] = [];
@@ -195,10 +233,11 @@ export function SkyView({ sky, mode, className }: Props) {
         layer.geometry = next;
       });
 
-      lineGeo.setAttribute(
-        "position",
-        new THREE.BufferAttribute(new Float32Array(model.lineSegments), 3),
-      );
+      const scaled = new Float32Array(model.lineSegments.length);
+      for (let i = 0; i < model.lineSegments.length; i += 1) {
+        scaled[i] = model.lineSegments[i]! * SKY_RADIUS;
+      }
+      lineGeo.setAttribute("position", new THREE.BufferAttribute(scaled, 3));
       lineGeo.computeBoundingSphere();
 
       while (bodyGroup.children.length) {
@@ -214,18 +253,18 @@ export function SkyView({ sky, mode, className }: Props) {
 
       for (const body of model.bodies) {
         const radius =
-          body.kind === "sun"
+          (body.kind === "sun"
             ? 0.018
             : body.id === "earth"
               ? 0.012
               : body.kind === "satellite"
                 ? 0.01
-                : 0.0075;
+                : 0.0075) * SKY_RADIUS;
         const mesh = new THREE.Mesh(
           new THREE.SphereGeometry(radius, 16, 16),
           new THREE.MeshBasicMaterial({ color: body.color }),
         );
-        mesh.position.set(body.dir.x, body.dir.y, body.dir.z);
+        mesh.position.set(body.dir.x * SKY_RADIUS, body.dir.y * SKY_RADIUS, body.dir.z * SKY_RADIUS);
         bodyGroup.add(mesh);
         if (body.kind === "sun") {
           const glow = new THREE.Mesh(
@@ -266,7 +305,11 @@ export function SkyView({ sky, mode, className }: Props) {
       const w = host.clientWidth;
       const h = host.clientHeight;
       for (const item of labels) {
-        tmp.set(item.label.dir.x, item.label.dir.y, item.label.dir.z);
+        tmp.set(
+          item.label.dir.x * SKY_RADIUS,
+          item.label.dir.y * SKY_RADIUS,
+          item.label.dir.z * SKY_RADIUS,
+        );
         tmp.project(camera);
         const visible = tmp.z < 1 && tmp.x > -1.1 && tmp.x < 1.1 && tmp.y > -1.1 && tmp.y < 1.1;
         if (!visible) {
@@ -308,7 +351,7 @@ export function SkyView({ sky, mode, className }: Props) {
       lastX = e.clientX;
       lastY = e.clientY;
       targetYaw.current -= dx * 0.005;
-      targetPitch.current = Math.min(1.35, Math.max(0.06, targetPitch.current + dy * 0.004));
+      targetPitch.current = Math.min(1.35, Math.max(-0.28, targetPitch.current + dy * 0.004));
     };
     const onUp = () => {
       dragging = false;
@@ -348,6 +391,22 @@ export function SkyView({ sky, mode, className }: Props) {
       host.removeEventListener("pointercancel", onUp);
       skyDome.geometry.dispose();
       (skyDome.material as THREE.Material).dispose();
+      terrainGeo.dispose();
+      terrainMat.dispose();
+      farFloor.geometry.dispose();
+      (farFloor.material as THREE.Material).dispose();
+      boulderGeo.dispose();
+      boulderMat.dispose();
+      grit.dispose();
+      haze.geometry.dispose();
+      (haze.material as THREE.Material).dispose();
+      twilight.geometry.dispose();
+      (twilight.material as THREE.Material).dispose();
+      compassSprites.forEach((sprite) => {
+        const mat = sprite.material as THREE.SpriteMaterial;
+        mat.map?.dispose();
+        mat.dispose();
+      });
       starLayers.forEach((layer) => {
         layer.geometry.dispose();
         (layer.material as THREE.Material).dispose();
@@ -375,11 +434,12 @@ export function SkyView({ sky, mode, className }: Props) {
 }
 
 function makeMartianSkyDome(): THREE.Mesh {
-  const geo = new THREE.SphereGeometry(6, 48, 32, 0, Math.PI * 2, 0, Math.PI / 2);
+  const radius = 56;
+  const geo = new THREE.SphereGeometry(radius, 48, 32, 0, Math.PI * 2, 0, Math.PI / 2);
   const cols = new Float32Array((geo.attributes.position?.count ?? 0) * 3);
   const pos = geo.attributes.position!;
   for (let i = 0; i < pos.count; i++) {
-    const y = pos.getY(i) / 6;
+    const y = pos.getY(i) / radius;
     const t = Math.min(1, Math.max(0, y));
     const hor = [0.78, 0.42, 0.22];
     const mid = [0.28, 0.12, 0.08];
@@ -393,16 +453,19 @@ function makeMartianSkyDome(): THREE.Mesh {
     cols[i * 3 + 2] = a[2]! + (b[2]! - a[2]!) * s;
   }
   geo.setAttribute("color", new THREE.BufferAttribute(cols, 3));
-  return new THREE.Mesh(
+  const mesh = new THREE.Mesh(
     geo,
     new THREE.MeshBasicMaterial({
       vertexColors: true,
       side: THREE.BackSide,
       depthWrite: false,
+      depthTest: true,
       transparent: true,
       opacity: 0.52,
     }),
   );
+  mesh.renderOrder = -1;
+  return mesh;
 }
 
 function makeTextSprite(text: string): THREE.Sprite {
@@ -411,7 +474,7 @@ function makeTextSprite(text: string): THREE.Sprite {
   canvas.height = 64;
   const ctx = canvas.getContext("2d")!;
   ctx.clearRect(0, 0, 128, 64);
-  ctx.fillStyle = "#c47a4a";
+  ctx.fillStyle = "#e8c4a0";
   ctx.font = "500 22px Outfit, system-ui, sans-serif";
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
