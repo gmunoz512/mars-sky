@@ -10,7 +10,9 @@ import {
 import { hypot3, mulVec } from "./math";
 import { findJezeroMidnight, midnightResidualDeg } from "./midnight";
 import { marsMoonsEqjKm } from "./moons";
+import { bodyFixedToThree, jezeroUnitFixed } from "./globe";
 import { computeSky } from "./sky";
+import { dot } from "./math";
 
 describe("Mars body-fixed frame", () => {
   it("maps the IAU north pole to +Z and gives Jezero the correct NCP altitude", () => {
@@ -47,6 +49,20 @@ describe("local true solar midnight", () => {
     expect(Math.abs(midnightResidualDeg(utc))).toBeLessThan(0.05);
     const noon = Date.UTC(1990, 1, 18, 12);
     expect(Math.abs(utc.getTime() - noon)).toBeLessThan(14 * 3600 * 1000);
+  });
+});
+
+describe("orbit globe frame", () => {
+  it("maps Mars north to +Y and keeps Jezero on the night side at midnight", () => {
+    const n = bodyFixedToThree({ x: 0, y: 0, z: 1 });
+    expect(n.x).toBeCloseTo(0);
+    expect(n.y).toBeCloseTo(1);
+    expect(n.z).toBeCloseTo(0);
+
+    const site = jezeroUnitFixed();
+    const sky = computeSky({ year: 2021, month: 2, day: 18 });
+    expect(dot(sky.sunFixed, site)).toBeLessThan(-0.5);
+    expect(sky.sunFixed.x ** 2 + sky.sunFixed.y ** 2 + sky.sunFixed.z ** 2).toBeCloseTo(1, 5);
   });
 });
 

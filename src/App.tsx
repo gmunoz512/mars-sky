@@ -1,6 +1,9 @@
 import { useMemo, useState } from "react";
 import { DatePicker } from "./components/DatePicker";
+import { GlobeView } from "./components/GlobeView";
+import { ScaleToggle } from "./components/ScaleToggle";
 import { SkyView } from "./components/SkyView";
+import { useScale } from "./components/useScale";
 import { JEZERO } from "./lib/jezero";
 import { computeSky, formatUtc, type CivilDate } from "./lib/sky";
 
@@ -15,83 +18,146 @@ function bodyLine(sky: ReturnType<typeof computeSky>): string {
 export default function App() {
   const [date, setDate] = useState<CivilDate>(DEFAULT_DATE);
   const sky = useMemo(() => computeSky(date), [date]);
+  const { scale, approach, busy, goSurface, setScaleExplicit } = useScale();
+  const onSurface = scale === "surface";
+  const showSky = onSurface || approach > 0.62;
 
   return (
     <div className="min-h-screen bg-dusk text-ink">
-      <header className="mx-auto flex max-w-6xl items-baseline justify-between px-6 pb-2 pt-8 sm:px-10">
+      <header className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-6 pb-2 pt-8 sm:px-10">
         <p className="font-serif text-2xl tracking-tight">jezero</p>
-        <p className="text-[10px] font-medium uppercase tracking-[0.28em] text-mute">
+        <ScaleToggle value={scale} onChange={setScaleExplicit} disabled={busy} />
+        <p className="hidden text-[10px] font-medium uppercase tracking-[0.28em] text-mute sm:block">
           {JEZERO.name} · {JEZERO.rover}
         </p>
       </header>
 
-      <section className="mx-auto grid max-w-6xl gap-12 px-6 pb-16 pt-10 sm:px-10 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.15fr)] lg:items-end">
+      <section className="relative mt-6">
+        <div className="relative h-[78vh] min-h-[28rem] w-full overflow-hidden">
+          <div
+            className={`absolute inset-0 transition-opacity duration-700 ${
+              onSurface ? "pointer-events-none opacity-0" : "opacity-100"
+            }`}
+          >
+            <GlobeView
+              ls={sky.ls}
+              sunFixed={sky.sunFixed}
+              approach={approach}
+              className="h-full w-full"
+              onEnterSurface={goSurface}
+            />
+          </div>
+          {showSky && (
+            <div
+              className={`absolute inset-0 transition-opacity duration-700 ${
+                onSurface ? "opacity-100" : "pointer-events-none opacity-0"
+              }`}
+            >
+              <SkyView sky={sky} mode="locked" className="h-full w-full" />
+            </div>
+          )}
+
+          <div className="pointer-events-none absolute inset-x-0 bottom-0 bg-gradient-to-t from-dusk via-dusk/50 to-transparent px-6 pb-8 pt-24 sm:px-10">
+            <div className="mx-auto max-w-6xl">
+              {onSurface ? (
+                <div>
+                  <p className="text-[10px] font-medium uppercase tracking-[0.32em] text-rust">
+                    Surface · Jezero
+                  </p>
+                  <h1 className="mt-3 max-w-xl font-serif text-4xl leading-[1.1] sm:text-5xl">
+                    The night over the crater.
+                  </h1>
+                </div>
+              ) : (
+                <div>
+                  <p className="text-[10px] font-medium uppercase tracking-[0.32em] text-rust">
+                    Orbit
+                  </p>
+                  <h1 className="mt-3 max-w-xl font-serif text-4xl leading-[1.1] sm:text-5xl">
+                    Mars, at a quiet distance.
+                  </h1>
+                  <p className="mt-4 max-w-lg text-[14px] leading-relaxed text-ink/70">
+                    A shaded globe — not a spacecraft mosaic. Lighting is the Sun
+                    at Jezero’s local true solar midnight for the date below.
+                    The crater sits on the night side. Drag to turn. Click the
+                    pin, or Surface, to stand in the atmosphere and look out.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={goSurface}
+                    disabled={busy}
+                    className="pointer-events-auto mt-6 border border-ink/20 px-4 py-2 text-[10px] font-medium uppercase tracking-[0.26em] text-ink/85 transition hover:border-rust/60 hover:text-ink disabled:opacity-40"
+                  >
+                    Stand on Jezero
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section className="mx-auto grid max-w-6xl gap-10 px-6 py-14 sm:px-10 lg:grid-cols-[minmax(0,1fr)_minmax(0,0.9fr)] lg:items-end">
         <div>
           <p className="text-[10px] font-medium uppercase tracking-[0.32em] text-rust">
             A birthday, held still
           </p>
-          <h1 className="mt-4 max-w-md font-serif text-4xl leading-[1.1] sm:text-5xl">
-            The night over the crater.
-          </h1>
-          <p className="mt-6 max-w-md text-[15px] leading-relaxed text-ink/75">
-            Enter a date. This page computes the sky above Jezero crater — 18.4°
-            north on Mars — at local true solar midnight on that Earth calendar
-            day. The stars are Hipparcos lights. The figures are the IAU
-            constellations. The horizon is not Earth’s.
+          <p className="mt-4 max-w-md text-[15px] leading-relaxed text-ink/75">
+            {onSurface
+              ? "Enter a date. This page computes the sky above Jezero crater — 18.4° north on Mars — at local true solar midnight on that Earth calendar day. The stars are Hipparcos lights. The figures are the IAU constellations. The horizon is not Earth’s."
+              : "The date still belongs to a birthday. On the globe it only turns the Sun. The computed sky — stars, figures, moons — waits until you are on the surface."}
           </p>
           <div className="mt-10">
             <DatePicker value={date} onChange={setDate} />
           </div>
           <p className="mt-6 text-[12px] leading-relaxed text-mute">
             Local true solar midnight at {JEZERO.latitudeDeg.toFixed(4)}°N,{" "}
-            {JEZERO.longitudeEastDeg.toFixed(4)}°E. The Sun is at lower
-            culmination, due north and far below the horizon. Instant used:{" "}
+            {JEZERO.longitudeEastDeg.toFixed(4)}°E. Instant used:{" "}
             <span className="text-ink/70">{formatUtc(sky.utc)}</span>.
           </p>
         </div>
-
-        <div>
-          <SkyView
-            sky={sky}
-            mode="locked"
-            className="aspect-[4/5] min-h-[22rem] w-full rounded-sm border border-ink/10 sm:aspect-[16/11] sm:min-h-[26rem]"
-          />
-          <div className="mt-4 flex flex-wrap items-center justify-between gap-3 text-[11px] text-mute">
-            <p>Ls {sky.ls.toFixed(1)}° · {sky.season} at Jezero</p>
-            <p className="text-ink/45">slow drift · midnight is fixed</p>
-          </div>
-        </div>
-      </section>
-
-      <section className="border-t border-ink/10">
-        <div className="mx-auto max-w-6xl px-6 py-8 sm:px-10">
-          <p className="max-w-3xl text-[13px] leading-relaxed text-ink/70">
-            These are the same 88 IAU constellations drawn on Earth’s sky,
-            oriented as they stand from Mars. No separate Mars-only mythology is
-            invented here.
-          </p>
-          <p className="mt-3 text-[13px] text-ink/55">{bodyLine(sky)}</p>
-        </div>
-      </section>
-
-      <section className="relative">
-        <div className="mx-auto flex max-w-6xl items-end justify-between px-6 pb-4 pt-10 sm:px-10">
-          <div>
-            <p className="text-[10px] font-medium uppercase tracking-[0.32em] text-rust">
-              Look around
-            </p>
-            <h2 className="mt-3 font-serif text-3xl sm:text-4xl">The hour stays. You turn.</h2>
-            <p className="mt-3 max-w-lg text-[14px] leading-relaxed text-ink/70">
-              Same birthday, same local midnight. Drag the dome. Cardinals sit
-              on the crater rim: north is the Mars celestial pole, 18.4° up.
-            </p>
-          </div>
-          <p className="hidden text-[11px] uppercase tracking-[0.22em] text-mute sm:block">
-            drag to orbit
+        <div className="text-[12px] leading-relaxed text-mute">
+          <p>
+            Ls {sky.ls.toFixed(1)}° · {sky.season} at Jezero. Polar caps on the
+            globe follow that season only in a coarse way. Night-side lighting
+            is honest: at this midnight the Sun is below the crater’s horizon.
           </p>
         </div>
-        <SkyView sky={sky} mode="look" className="h-[78vh] min-h-[28rem] w-full" />
       </section>
+
+      {onSurface && (
+        <>
+          <section className="border-t border-ink/10">
+            <div className="mx-auto max-w-6xl px-6 py-8 sm:px-10">
+              <p className="max-w-3xl text-[13px] leading-relaxed text-ink/70">
+                These are the same 88 IAU constellations drawn on Earth’s sky,
+                oriented as they stand from Mars. No separate Mars-only mythology
+                is invented here.
+              </p>
+              <p className="mt-3 text-[13px] text-ink/55">{bodyLine(sky)}</p>
+            </div>
+          </section>
+
+          <section className="relative">
+            <div className="mx-auto flex max-w-6xl items-end justify-between px-6 pb-4 pt-10 sm:px-10">
+              <div>
+                <p className="text-[10px] font-medium uppercase tracking-[0.32em] text-rust">
+                  Look around
+                </p>
+                <h2 className="mt-3 font-serif text-3xl sm:text-4xl">The hour stays. You turn.</h2>
+                <p className="mt-3 max-w-lg text-[14px] leading-relaxed text-ink/70">
+                  Same birthday, same local midnight. Drag the dome. Cardinals sit
+                  on the crater rim: north is the Mars celestial pole, 18.4° up.
+                </p>
+              </div>
+              <p className="hidden text-[11px] uppercase tracking-[0.22em] text-mute sm:block">
+                drag to look
+              </p>
+            </div>
+            <SkyView sky={sky} mode="look" className="h-[78vh] min-h-[28rem] w-full" />
+          </section>
+        </>
+      )}
 
       <footer className="mx-auto max-w-6xl px-6 py-14 text-[12px] leading-relaxed text-mute sm:px-10">
         <p>
@@ -105,7 +171,8 @@ export default function App() {
           Bright stars: Hipparcos-based magnitude ≤ 6 catalog via d3-celestial.
           Planetary vectors: astronomy-engine (VSOP87 / NOVAS). Mars orientation:
           IAU WGCCRE 2015 via astronomy-engine <span className="text-ink/50">RotationAxis</span>.
-          Sources are listed in the README.
+          The orbit globe is a generated albedo with a thin atmospheric limb —
+          not a Viking or MGS mosaic. Sources are listed in the README.
         </p>
         <p className="mt-8 text-[10px] uppercase tracking-[0.28em]">
           jezero · a static page · no accounts

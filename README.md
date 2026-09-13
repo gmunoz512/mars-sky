@@ -42,14 +42,21 @@ For a user/org root site instead, set `VITE_BASE=/` in the workflow and host at 
 
 ## What it shows
 
+Two scales, one date:
+
+1. **Orbit** (default) — a shaded Mars globe with a thin atmospheric limb. Jezero is a pin on the night side. Drag to turn the planet. The birthday date sets the Sun’s direction (true midnight lighting) and a coarse seasonal polar-cap size. The globe is generated, not a Viking/MGS mosaic.
+2. **Surface** — the existing sky: Hipparcos stars, IAU figures, planets, Phobos and Deimos, plus a look-around dome.
+
+**Zoom interaction:** `Orbit` / `Surface` in the header, or **Stand on Jezero** / the crater pin. The camera eases toward the pin (~1.6s, reduced-motion skips it), then the computed sky fades in as if you were standing in the crater looking out through a thin atmosphere. `Orbit` reverses the move.
+
 - Bright stars (Hipparcos-based, mag ≤ 6) and IAU constellation stick figures / Latin names
 - Sun, Earth, the Moon, and the major planets when they are above the Jezero horizon
 - Phobos and Deimos at approximate topocentric positions
-- A second view you can drag, at the same midnight
+- A second surface view you can drag, at the same midnight
 
 The figures are the **same 88 IAU constellations** as on Earth, rotated into the Jezero horizon. This page does not invent a Mars-only mythology.
 
-Default date is 18 February 2021 (Perseverance landing). Changing year, month, or day recomputes the sky.
+Default date is 18 February 2021 (Perseverance landing). Changing year, month, or day recomputes the surface sky and the globe’s sunlight.
 
 ## Science
 
@@ -60,7 +67,8 @@ Default date is 18 February 2021 (Perseverance landing). Changing year, month, o
 | Planets, Sun, Earth, Moon | [astronomy-engine](https://github.com/cosinekitty/astronomy) (VSOP87 / NOVAS) | Mars-centered vectors with a one-step light-time correction. Valid roughly 1600–2400; best near 1800–2100. |
 | Mars orientation | IAU WGCCRE 2015 via astronomy-engine `RotationAxis` (α₀, δ₀, W) | ICRF → body-fixed → Jezero horizon (east-north-up). |
 | Local midnight | Sun hour angle 180° at Jezero | Nearest midnight to 12:00 UTC on the selected civil date. A Mars sol is 24h 39m 35s. |
-| Season (Ls) | Allison & McEwen 2000 / [NASA Mars24](https://www.giss.nasa.gov/tools/mars24/help/algorithm.html) | Label only. |
+| Season (Ls) | Allison & McEwen 2000 / [NASA Mars24](https://www.giss.nasa.gov/tools/mars24/help/algorithm.html) | Label only; coarse polar-cap size on the orbit globe. |
+| Orbit globe | Generated albedo + limb glow | Schematic. Sun direction is the real Mars-centered vector at the selected midnight. |
 | Phobos, Deimos | Jacobson (2010), *AJ* 139, 668, Table 6; Phobos ½ṅ from Brozović, Jacobson & Park (2025), *AJ* | Mean precessing ellipses on each Laplace plane, not JPL MAR099 / Horizons. |
 
 ### Phobos and Deimos accuracy
