@@ -77,9 +77,9 @@ export function paintMarsGlobe(lsDeg: number): HTMLCanvasElement {
       const band = 0.08 * Math.cos((lat * Math.PI) / 45);
       const albedo = Math.min(1, Math.max(0, 0.42 + 0.38 * n + 0.16 * n2 + band));
 
-      let r = 118 + 92 * albedo;
-      let g = 58 + 48 * albedo;
-      let b = 36 + 22 * albedo;
+      let r = 132 + 98 * albedo;
+      let g = 48 + 38 * albedo;
+      let b = 28 + 16 * albedo;
 
       if (lat > 90 - northCap || lat < -90 + southCap) {
         const cap = lat > 0 ? (lat - (90 - northCap)) / northCap : (-90 + southCap - lat) / southCap;

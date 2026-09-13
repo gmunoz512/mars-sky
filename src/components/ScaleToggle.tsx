@@ -7,23 +7,15 @@ type Props = {
 };
 
 export function ScaleToggle({ value, onChange, disabled }: Props) {
-  const btn = (id: Scale, label: string) => (
+  const inward = value === "orbit";
+  return (
     <button
       type="button"
       disabled={disabled}
-      onClick={() => onChange(id)}
-      className={`px-3 py-1 text-[10px] font-medium uppercase tracking-[0.22em] transition ${
-        value === id ? "bg-ink/10 text-ink" : "text-mute hover:text-ink/80"
-      } disabled:opacity-40`}
+      onClick={() => onChange(inward ? "surface" : "orbit")}
+      className="border border-ink/25 px-4 py-2 text-[10px] font-medium uppercase tracking-[0.26em] text-ink/90 transition hover:border-rust/70 hover:text-ink disabled:opacity-40"
     >
-      {label}
+      {inward ? "Zoom in" : "Zoom out"}
     </button>
-  );
-
-  return (
-    <div className="inline-flex border border-ink/15">
-      {btn("orbit", "Orbit")}
-      {btn("surface", "Surface")}
-    </div>
   );
 }

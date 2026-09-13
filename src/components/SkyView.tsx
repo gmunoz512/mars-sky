@@ -75,10 +75,10 @@ export function SkyView({ sky, mode, className }: Props) {
     camera.up.set(0, 1, 0);
 
     // Azimuth 0 = north (Mars NCP). Elevation in radians above the horizon.
-    const yaw = { current: 0.15 };
-    const pitch = { current: 0.52 };
-    const targetYaw = { current: 0.15 };
-    const targetPitch = { current: 0.52 };
+    const yaw = { current: 0.12 };
+    const pitch = { current: 0.72 };
+    const targetYaw = { current: 0.12 };
+    const targetPitch = { current: 0.72 };
 
     const look = () => {
       const el = pitch.current;
@@ -119,27 +119,44 @@ export function SkyView({ sky, mode, className }: Props) {
     const bodyGroup = new THREE.Group();
     scene.add(bodyGroup);
 
+    const skyDome = makeMartianSkyDome();
+    scene.add(skyDome);
+
     const ground = new THREE.Mesh(
       new THREE.CircleGeometry(8, 96),
-      new THREE.MeshBasicMaterial({ color: 0x0b0908 }),
+      new THREE.MeshBasicMaterial({ color: 0x2a160e }),
     );
     ground.rotation.x = -Math.PI / 2;
     ground.position.y = -0.012;
     scene.add(ground);
 
     const haze = new THREE.Mesh(
-      new THREE.RingGeometry(0.98, 3.4, 96),
+      new THREE.RingGeometry(0.9, 4.2, 96),
       new THREE.MeshBasicMaterial({
-        color: 0x6a3a24,
+        color: 0xd49258,
         transparent: true,
-        opacity: 0.09,
+        opacity: 0.16,
         side: THREE.DoubleSide,
         depthWrite: false,
       }),
     );
     haze.rotation.x = -Math.PI / 2;
-    haze.position.y = -0.008;
+    haze.position.y = -0.006;
     scene.add(haze);
+
+    const twilight = new THREE.Mesh(
+      new THREE.RingGeometry(0.86, 1.55, 96),
+      new THREE.MeshBasicMaterial({
+        color: 0xf0b478,
+        transparent: true,
+        opacity: 0.2,
+        side: THREE.DoubleSide,
+        depthWrite: false,
+      }),
+    );
+    twilight.rotation.x = -Math.PI / 2;
+    twilight.position.y = 0.01;
+    scene.add(twilight);
 
     scene.add(
       new THREE.LineLoop(
@@ -196,7 +213,14 @@ export function SkyView({ sky, mode, className }: Props) {
       }
 
       for (const body of model.bodies) {
-        const radius = body.kind === "sun" ? 0.018 : body.kind === "satellite" ? 0.01 : 0.0075;
+        const radius =
+          body.kind === "sun"
+            ? 0.018
+            : body.id === "earth"
+              ? 0.012
+              : body.kind === "satellite"
+                ? 0.01
+                : 0.0075;
         const mesh = new THREE.Mesh(
           new THREE.SphereGeometry(radius, 16, 16),
           new THREE.MeshBasicMaterial({ color: body.color }),
@@ -322,6 +346,8 @@ export function SkyView({ sky, mode, className }: Props) {
       host.removeEventListener("pointermove", onMove);
       host.removeEventListener("pointerup", onUp);
       host.removeEventListener("pointercancel", onUp);
+      skyDome.geometry.dispose();
+      (skyDome.material as THREE.Material).dispose();
       starLayers.forEach((layer) => {
         layer.geometry.dispose();
         (layer.material as THREE.Material).dispose();
@@ -345,6 +371,37 @@ export function SkyView({ sky, mode, className }: Props) {
       <div ref={hostRef} className="absolute inset-0" />
       <div ref={overlayRef} className="pointer-events-none absolute inset-0 font-sans" />
     </div>
+  );
+}
+
+function makeMartianSkyDome(): THREE.Mesh {
+  const geo = new THREE.SphereGeometry(6, 48, 32, 0, Math.PI * 2, 0, Math.PI / 2);
+  const cols = new Float32Array((geo.attributes.position?.count ?? 0) * 3);
+  const pos = geo.attributes.position!;
+  for (let i = 0; i < pos.count; i++) {
+    const y = pos.getY(i) / 6;
+    const t = Math.min(1, Math.max(0, y));
+    const hor = [0.78, 0.42, 0.22];
+    const mid = [0.28, 0.12, 0.08];
+    const zen = [0.06, 0.035, 0.04];
+    const u = t < 0.28 ? t / 0.28 : 1;
+    const a = t < 0.28 ? hor : mid;
+    const b = t < 0.28 ? mid : zen;
+    const s = t < 0.28 ? u : (t - 0.28) / 0.72;
+    cols[i * 3] = a[0]! + (b[0]! - a[0]!) * s;
+    cols[i * 3 + 1] = a[1]! + (b[1]! - a[1]!) * s;
+    cols[i * 3 + 2] = a[2]! + (b[2]! - a[2]!) * s;
+  }
+  geo.setAttribute("color", new THREE.BufferAttribute(cols, 3));
+  return new THREE.Mesh(
+    geo,
+    new THREE.MeshBasicMaterial({
+      vertexColors: true,
+      side: THREE.BackSide,
+      depthWrite: false,
+      transparent: true,
+      opacity: 0.88,
+    }),
   );
 }
 

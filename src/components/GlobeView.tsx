@@ -57,7 +57,7 @@ export function GlobeView({ ls, sunFixed, approach, className, onEnterSurface }:
     host.appendChild(renderer.domElement);
 
     const scene = new THREE.Scene();
-    const camera = new THREE.PerspectiveCamera(36, 1, 0.05, 40);
+    const camera = new THREE.PerspectiveCamera(40, 1, 0.05, 40);
     camera.up.set(0, 1, 0);
 
     const starGeo = new THREE.BufferGeometry();
@@ -107,9 +107,9 @@ export function GlobeView({ ls, sunFixed, approach, className, onEnterSurface }:
 
     const atmosMat = new THREE.ShaderMaterial({
       uniforms: {
-        uColor: { value: new THREE.Color(0xc47a4a) },
-        uPower: { value: 2.4 },
-        uOpacity: { value: 0.62 },
+        uColor: { value: new THREE.Color(0xd4844c) },
+        uPower: { value: 2.15 },
+        uOpacity: { value: 0.72 },
       },
       vertexShader: ATMOS_VERT,
       fragmentShader: ATMOS_FRAG,
@@ -123,7 +123,7 @@ export function GlobeView({ ls, sunFixed, approach, className, onEnterSurface }:
 
     const hazeMat = new THREE.ShaderMaterial({
       uniforms: {
-        uColor: { value: new THREE.Color(0xe0a078) },
+        uColor: { value: new THREE.Color(0xf0b070) },
         uPower: { value: 3.6 },
         uOpacity: { value: 0.18 },
       },
@@ -255,14 +255,14 @@ export function GlobeView({ ls, sunFixed, approach, className, onEnterSurface }:
         targetYaw.current += 0.0014;
       }
 
-      const dist = 5.15 * (1 - a) + 1.1 * a;
-      const toward = 0.32 + 0.68 * a;
-      const side = 0.88 * (1 - a) + 0.1 * a;
+      const dist = 3.35 * (1 - a) + 1.08 * a;
+      const toward = 0.28 + 0.72 * a;
+      const side = 0.72 * (1 - a) + 0.08 * a;
       cam.copy(jezeroV).multiplyScalar(toward).addScaledVector(tangent, side).setLength(dist);
-      look.copy(jezeroV).multiplyScalar(0.05 + 0.95 * a);
+      look.copy(jezeroV).multiplyScalar(0.04 + 0.96 * a);
       camera.position.copy(cam);
       camera.lookAt(look);
-      camera.fov = 36 + 16 * a;
+      camera.fov = 40 + 14 * a;
       camera.updateProjectionMatrix();
 
       atmosMat.uniforms.uOpacity!.value = 0.62 + 0.28 * a;

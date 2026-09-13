@@ -26,6 +26,7 @@ const field =
 type Props = {
   value: CivilDate;
   onChange: (next: CivilDate) => void;
+  compact?: boolean;
 };
 
 function NumericField({
@@ -35,6 +36,7 @@ function NumericField({
   max,
   digits,
   onCommit,
+  compact,
 }: {
   label: string;
   value: number;
@@ -42,6 +44,7 @@ function NumericField({
   max: number;
   digits: number;
   onCommit: (n: number) => void;
+  compact?: boolean;
 }) {
   const [draft, setDraft] = useState(String(value));
   const [focused, setFocused] = useState(false);
@@ -65,7 +68,7 @@ function NumericField({
         {label}
       </span>
       <input
-        className={`${field} font-serif text-3xl`}
+        className={`${field} font-serif ${compact ? "text-xl sm:text-2xl" : "text-3xl"}`}
         type="text"
         inputMode="numeric"
         autoComplete="off"
@@ -96,7 +99,7 @@ function NumericField({
   );
 }
 
-export function DatePicker({ value, onChange }: Props) {
+export function DatePicker({ value, onChange, compact }: Props) {
   const dim = daysInMonth(value.year, value.month);
 
   const set = (patch: Partial<CivilDate>) => {
@@ -105,14 +108,17 @@ export function DatePicker({ value, onChange }: Props) {
     onChange({ ...next, day: Math.min(next.day, max) });
   };
 
+  const typeSize = compact ? "text-xl sm:text-2xl" : "text-3xl";
+
   return (
-    <div className="grid grid-cols-3 gap-5 sm:gap-8">
+    <div className={`grid grid-cols-3 ${compact ? "gap-4 sm:gap-6" : "gap-5 sm:gap-8"}`}>
       <NumericField
         label="Year"
         value={value.year}
         min={1600}
         max={2399}
         digits={4}
+        compact={compact}
         onCommit={(year) => set({ year })}
       />
       <label className="block">
@@ -120,7 +126,7 @@ export function DatePicker({ value, onChange }: Props) {
           Month
         </span>
         <select
-          className={`${field} font-serif text-3xl`}
+          className={`${field} font-serif ${typeSize}`}
           value={value.month}
           onChange={(e) => set({ month: Number(e.target.value) })}
         >
@@ -137,6 +143,7 @@ export function DatePicker({ value, onChange }: Props) {
         min={1}
         max={dim}
         digits={2}
+        compact={compact}
         onCommit={(day) => set({ day })}
       />
     </div>

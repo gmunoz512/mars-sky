@@ -42,12 +42,12 @@ For a user/org root site instead, set `VITE_BASE=/` in the workflow and host at 
 
 ## What it shows
 
-Two scales, one date:
+A single full-viewport canvas (the page does not scroll). Overlay chrome only: title, birthday fields, zoom, footnotes.
 
-1. **Orbit** (default) — a shaded Mars globe with a thin atmospheric limb. Jezero is a pin on the night side. Drag to turn the planet. The birthday date sets the Sun’s direction (true midnight lighting) and a coarse seasonal polar-cap size. The globe is generated, not a Viking/MGS mosaic.
-2. **Surface** — the existing sky: Hipparcos stars, IAU figures, planets, Phobos and Deimos, plus a look-around dome.
+1. **Orbit** (default) — a dusty red/ochre Mars globe fills the frame, thin rust limb, Jezero pin. Drag to turn. The date sets midnight sunlight and coarse polar caps. Generated albedo, not a Viking/MGS mosaic.
+2. **Surface** — looking out from Jezero through a thin butterscotch haze: Hipparcos stars, IAU figures, Earth/planets when up, Phobos and Deimos. Drag to look around.
 
-**Zoom interaction:** `Orbit` / `Surface` in the header, or **Stand on Jezero** / the crater pin. The camera eases toward the pin (~1.6s, reduced-motion skips it), then the computed sky fades in as if you were standing in the crater looking out through a thin atmosphere. `Orbit` reverses the move.
+**Interaction:** **Zoom in**, the crater pin, or scroll/pinch in. Completing or changing a birthday (year + month + day) also zooms in automatically; further date edits update the sky in place. **Zoom out** or scroll/pinch out returns to the globe. `prefers-reduced-motion` skips the tween.
 
 - Bright stars (Hipparcos-based, mag ≤ 6) and IAU constellation stick figures / Latin names
 - Sun, Earth, the Moon, and the major planets when they are above the Jezero horizon
