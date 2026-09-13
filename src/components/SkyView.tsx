@@ -161,7 +161,7 @@ export function SkyView({ sky, mode, className }: Props) {
     farFloor.position.y = -0.18;
     scene.add(farFloor);
 
-    const boulderGeo = new THREE.IcosahedronGeometry(1, 1);
+    const boulderGeo = new THREE.DodecahedronGeometry(1, 0);
     const boulderMat = new THREE.MeshBasicMaterial({
       color: 0xb4683c,
       map: grit,

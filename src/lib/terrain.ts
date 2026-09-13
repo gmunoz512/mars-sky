@@ -201,21 +201,19 @@ export function buildGritTexture(): THREE.CanvasTexture {
   canvas.width = 256;
   canvas.height = 256;
   const ctx = canvas.getContext("2d")!;
-  ctx.fillStyle = "#e8c4a0";
-  ctx.fillRect(0, 0, 256, 256);
-  for (let i = 0; i < 2200; i += 1) {
-    const x = Math.random() * 256;
-    const y = Math.random() * 256;
-    const s = 0.6 + Math.random() * 2.4;
-    const shade = 150 + Math.floor(Math.random() * 90);
-    ctx.fillStyle = `rgb(${shade},${Math.floor(shade * 0.62)},${Math.floor(shade * 0.4)})`;
-    ctx.fillRect(x, y, s, s);
+  const img = ctx.createImageData(256, 256);
+  for (let i = 0; i < img.data.length; i += 4) {
+    const n = 0.78 + Math.random() * 0.22;
+    img.data[i] = Math.floor(232 * n);
+    img.data[i + 1] = Math.floor(168 * n);
+    img.data[i + 2] = Math.floor(112 * n);
+    img.data[i + 3] = 255;
   }
-  for (let i = 0; i < 80; i += 1) {
-    ctx.fillStyle = `rgba(90,48,28,${0.12 + Math.random() * 0.2})`;
-    ctx.beginPath();
-    ctx.ellipse(Math.random() * 256, Math.random() * 256, 4 + Math.random() * 10, 2 + Math.random() * 5, Math.random() * 5, 0, Math.PI * 2);
-    ctx.fill();
+  ctx.putImageData(img, 0, 0);
+  for (let i = 0; i < 140; i += 1) {
+    const shade = 120 + Math.floor(Math.random() * 70);
+    ctx.fillStyle = `rgba(${shade},${Math.floor(shade * 0.55)},${Math.floor(shade * 0.32)},0.35)`;
+    ctx.fillRect(Math.random() * 256, Math.random() * 256, 1 + Math.random() * 2, 1 + Math.random() * 2);
   }
   const tex = new THREE.CanvasTexture(canvas);
   tex.wrapS = THREE.RepeatWrapping;
