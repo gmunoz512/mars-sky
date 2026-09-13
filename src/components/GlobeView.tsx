@@ -168,10 +168,11 @@ export function GlobeView({ ls, sunFixed, approach, className, onEnterSurface }:
       fragmentShader: ATMOS_FRAG,
       transparent: true,
       depthWrite: false,
+      depthTest: false,
       side: THREE.BackSide,
       blending: THREE.AdditiveBlending,
     });
-    const atmos = new THREE.Mesh(new THREE.SphereGeometry(1.058, 64, 48), atmosMat);
+    const atmos = new THREE.Mesh(new THREE.SphereGeometry(1.062, 64, 48), atmosMat);
     marsGroup.add(atmos);
 
     const hazeMat = new THREE.ShaderMaterial({
@@ -185,9 +186,10 @@ export function GlobeView({ ls, sunFixed, approach, className, onEnterSurface }:
       fragmentShader: ATMOS_FRAG,
       transparent: true,
       depthWrite: false,
+      depthTest: false,
       blending: THREE.AdditiveBlending,
     });
-    marsGroup.add(new THREE.Mesh(new THREE.SphereGeometry(1.02, 64, 48), hazeMat));
+    marsGroup.add(new THREE.Mesh(new THREE.SphereGeometry(1.028, 64, 48), hazeMat));
 
     const jezeroBf = jezeroUnitFixed();
     const jezero = bodyFixedToThree(jezeroBf);
@@ -223,7 +225,7 @@ export function GlobeView({ ls, sunFixed, approach, className, onEnterSurface }:
     const rim = new THREE.HemisphereLight(0xc9a078, 0x050403, 0.07);
     scene.add(rim);
 
-    const portraitSun = new THREE.Vector3(0.05, 0.58, 0.81).normalize();
+    const portraitSun = new THREE.Vector3(0.12, 0.92, 0.32).normalize();
 
     const userYaw = { current: 0 };
     const targetYaw = { current: 0 };
