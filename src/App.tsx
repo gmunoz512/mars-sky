@@ -92,15 +92,16 @@ export default function App() {
             <DatePicker value={date} onChange={onDate} compact />
             <p className="mt-3 text-[11px] leading-relaxed text-mute">
               {onSurface
-                ? "Local true solar midnight. Drag to look. Ground is Perseverance Mastcam-Z (PIA24921 / PIA24663 / PIA26378), not a HiRISE mesh — daylight photos under a midnight sky."
+                ? "Local true solar midnight. Drag to look. Horizon is one Perseverance Mastcam-Z 360 (PIA24663), not a HiRISE mesh — daylight photo under a midnight sky."
                 : "Enter a birthday to stand on Jezero and look out."}{" "}
               <span className="text-ink/55">{formatUtc(sky.utc)}</span>
             </p>
           </div>
           <p className="max-w-sm text-[10px] leading-relaxed text-mute/90 sm:text-right">
             {onSurface ? `${bodyLine(sky)}. ` : ""}
-            Ls {sky.ls.toFixed(1)}° · {sky.season}. Globe is shaded, not a mosaic.
-            Terrain photos: NASA/JPL-Caltech/ASU/MSSS PIA24921, PIA24663, PIA26378.
+            Ls {sky.ls.toFixed(1)}° · {sky.season}. Globe is Viking MDIM 2.1
+            (NASA/JPL/USGS), not a generated texture. Terrain: NASA/JPL-Caltech/ASU/MSSS
+            PIA24663.
             Phobos/Deimos are mean orbits, not Horizons. {JEZERO.latitudeDeg.toFixed(2)}°N{" "}
             {JEZERO.longitudeEastDeg.toFixed(2)}°E.
           </p>

@@ -1,16 +1,30 @@
-# Mars surface textures
+# Mars textures
 
-Shipped JPEGs are compressed crops (≤ 2048 px) of NASA public-domain
-Perseverance / Mastcam-Z photography. Not a HiRISE DEM or a
-photogrammetric mesh. Credit: **NASA/JPL-Caltech/ASU/MSSS**.
+Shipped JPEGs are compressed public-domain NASA / USGS products.
+None of this is a HiRISE DEM or a photogrammetric mesh.
 
-More 360s: [Mastcam-Z 360 panorama collection](https://mastcamz.asu.edu/mastcam-zs-360-panorama-collection/).
+## Surface — Perseverance / Mastcam-Z
+
+Credit: **NASA/JPL-Caltech/ASU/MSSS**.
 
 | File | Source | What we shipped |
 | --- | --- | --- |
-| `jezero-delta.jpg` | [PIA24921](https://photojournal.jpl.nasa.gov/catalog/PIA24921) Jezero delta panorama (also [JPL](https://www.jpl.nasa.gov/images/pia24921-detailed-panorama-of-mars-jezero-crater-delta/)) | Facing landscape: delta butte + pavement; rover deck cropped out; 2048 px wide |
-| `jezero-ground.jpg` | Same PIA24921 mosaic | Near-field cracked pavement / soil, 1536² |
-| `jezero-horizon.jpg` | [PIA24663](https://photojournal.jpl.nasa.gov/catalog/PIA24663) Van Zyl Overlook 360° | Full look-around wrap; rover hardware cropped; 2048 px wide |
-| `jezero-climb.jpg` | [PIA26378](https://photojournal.jpl.nasa.gov/catalog/PIA26378) mid-climb Jezero view | Crater-floor vista when looking east-southeast; mosaic mask cropped; 2048 px wide |
+| `jezero-horizon.jpg` | [PIA24663](https://photojournal.jpl.nasa.gov/catalog/PIA24663) Van Zyl Overlook 360° | Full-width 360 wrap, rover hardware cropped/inpainted, 2048 px wide |
+| `jezero-ground.jpg` | Same PIA24663 mosaic | Near-field rocks / soil, 1536² |
 
-Regenerate with `python3 scripts/prepare-mars-textures.py` (needs Pillow). NASA imagery is generally not copyrighted; credit as above.
+One cylinder only. PIA24921 and PIA26378 are not composited as extra panels —
+those mismatched horizon heights were the visible seam.
+
+More 360s: [Mastcam-Z 360 panorama collection](https://mastcamz.asu.edu/mastcam-zs-360-panorama-collection/).
+
+## Orbit globe — Viking MDIM 2.1
+
+Credit: **NASA/JPL/USGS**.
+
+| File | Source | What we shipped |
+| --- | --- | --- |
+| `mars-albedo.jpg` | [USGS Viking MDIM 2.1 colorized global mosaic](https://astrogeology.usgs.gov/search/map/mars_viking_colorized_global_mosaic_232m) (1 km/px reduction on [Wikimedia Commons](https://commons.wikimedia.org/wiki/File:Mars_Viking_MDIM21_ClrMosaic_1km.jpg)) | Equirectangular 2048×1024, lon 0° at center (Airy-0) |
+| `mars-bump.jpg` | Derived from the same mosaic luminance | High-pass bump for dusty relief |
+
+Regenerate with `python3 scripts/prepare-mars-textures.py` (needs Pillow + NumPy).
+NASA imagery is generally not copyrighted; credit as above.
