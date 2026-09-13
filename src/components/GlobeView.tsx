@@ -96,54 +96,55 @@ export function GlobeView({ ls, sunFixed, approach, className, onEnterSurface }:
     const marsGroup = new THREE.Group();
     scene.add(marsGroup);
 
-    const placeholder = document.createElement("canvas");
-    placeholder.width = 4;
-    placeholder.height = 2;
-    const pctx = placeholder.getContext("2d")!;
-    pctx.fillStyle = "#7a4a32";
-    pctx.fillRect(0, 0, 4, 2);
-
-    const map = new THREE.CanvasTexture(placeholder);
-    map.colorSpace = THREE.SRGBColorSpace;
-    map.anisotropy = 8;
-    map.wrapS = THREE.RepeatWrapping;
-    map.wrapT = THREE.ClampToEdgeWrapping;
-    mapRef.current = map;
-
-    const bump = new THREE.Texture();
-    bump.wrapS = THREE.RepeatWrapping;
-    bump.wrapT = THREE.ClampToEdgeWrapping;
-    bump.anisotropy = 8;
-
     const marsMat = new THREE.MeshStandardMaterial({
-      map,
-      bumpMap: bump,
-      bumpScale: 0.038,
+      color: 0x8a5a3c,
       roughness: 0.86,
       metalness: 0.04,
-      color: 0xffffff,
+      bumpScale: 0.045,
       emissive: new THREE.Color(0xffffff),
-      emissiveMap: map,
-      emissiveIntensity: 0.32,
+      emissiveIntensity: 0.34,
     });
     const mars = new THREE.Mesh(new THREE.SphereGeometry(1, 96, 64), marsMat);
     marsGroup.add(mars);
 
-    const loader = new THREE.TextureLoader();
-    void Promise.all([loader.loadAsync(albedoUrl), loader.loadAsync(bumpUrl)]).then(
-      ([albedoTex, bumpTex]) => {
-        const src = albedoTex.image as CanvasImageSource;
-        albedoSrcRef.current = src;
-        const canvas = composeGlobeAlbedo(src, lsRef.current);
-        map.image = canvas;
-        map.needsUpdate = true;
-        albedoTex.dispose();
+    const applyColorMap = (tex: THREE.Texture) => {
+      tex.colorSpace = THREE.SRGBColorSpace;
+      tex.anisotropy = 8;
+      tex.wrapS = THREE.RepeatWrapping;
+      tex.wrapT = THREE.ClampToEdgeWrapping;
+      tex.needsUpdate = true;
+      const prev = marsMat.map;
+      marsMat.map = tex;
+      marsMat.emissiveMap = tex;
+      marsMat.needsUpdate = true;
+      if (prev && prev !== tex) prev.dispose();
+      mapRef.current = tex as THREE.CanvasTexture;
+    };
 
-        bump.image = bumpTex.image;
-        bump.needsUpdate = true;
-        bumpTex.dispose();
-      },
-    );
+    const loader = new THREE.TextureLoader();
+    void Promise.all([loader.loadAsync(albedoUrl), loader.loadAsync(bumpUrl)])
+      .then(([albedoTex, bumpTex]) => {
+        albedoSrcRef.current = albedoTex.image as CanvasImageSource;
+        try {
+          applyColorMap(
+            new THREE.CanvasTexture(composeGlobeAlbedo(albedoSrcRef.current, lsRef.current)),
+          );
+          albedoTex.dispose();
+        } catch {
+          applyColorMap(albedoTex);
+        }
+
+        bumpTex.colorSpace = THREE.NoColorSpace;
+        bumpTex.wrapS = THREE.RepeatWrapping;
+        bumpTex.wrapT = THREE.ClampToEdgeWrapping;
+        bumpTex.anisotropy = 8;
+        bumpTex.needsUpdate = true;
+        marsMat.bumpMap = bumpTex;
+        marsMat.needsUpdate = true;
+      })
+      .catch((err) => {
+        console.error("mars globe textures failed to load", err);
+      });
 
     const atmosMat = new THREE.ShaderMaterial({
       uniforms: {
@@ -328,8 +329,8 @@ export function GlobeView({ ls, sunFixed, approach, className, onEnterSurface }:
       host.removeEventListener("pointerup", onUp);
       host.removeEventListener("pointercancel", onUp);
       host.removeEventListener("click", onClick);
-      map.dispose();
-      bump.dispose();
+      marsMat.map?.dispose();
+      if (marsMat.bumpMap) marsMat.bumpMap.dispose();
       mars.geometry.dispose();
       marsMat.dispose();
       atmos.geometry.dispose();
