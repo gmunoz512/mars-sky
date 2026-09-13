@@ -61,7 +61,7 @@ export function GlobeView({ ls, sunFixed, approach, className, onEnterSurface }:
     renderer.setClearColor(0x07060a, 1);
     renderer.outputColorSpace = THREE.SRGBColorSpace;
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    renderer.toneMappingExposure = 1.08;
+    renderer.toneMappingExposure = 1.2;
     host.appendChild(renderer.domElement);
 
     const scene = new THREE.Scene();
@@ -118,10 +118,13 @@ export function GlobeView({ ls, sunFixed, approach, className, onEnterSurface }:
     const marsMat = new THREE.MeshStandardMaterial({
       map,
       bumpMap: bump,
-      bumpScale: 0.028,
-      roughness: 0.92,
-      metalness: 0.02,
+      bumpScale: 0.038,
+      roughness: 0.86,
+      metalness: 0.04,
       color: 0xffffff,
+      emissive: new THREE.Color(0xffffff),
+      emissiveMap: map,
+      emissiveIntensity: 0.32,
     });
     const mars = new THREE.Mesh(new THREE.SphereGeometry(1, 96, 64), marsMat);
     marsGroup.add(mars);
@@ -199,11 +202,11 @@ export function GlobeView({ ls, sunFixed, approach, className, onEnterSurface }:
       "pointer-events-none absolute left-0 top-0 text-[10px] uppercase tracking-[0.22em] text-ink/70";
     overlay.appendChild(label);
 
-    const sun = new THREE.DirectionalLight(0xffe4c8, 1.85);
+    const sun = new THREE.DirectionalLight(0xffe4c8, 2.15);
     scene.add(sun);
-    const fill = new THREE.AmbientLight(0x1c1612, 0.1);
+    const fill = new THREE.AmbientLight(0x2a2018, 0.18);
     scene.add(fill);
-    const rim = new THREE.HemisphereLight(0x5a4034, 0x070605, 0.2);
+    const rim = new THREE.HemisphereLight(0x6a4838, 0x0a0807, 0.32);
     scene.add(rim);
 
     const userYaw = { current: 0 };
@@ -214,6 +217,7 @@ export function GlobeView({ ls, sunFixed, approach, className, onEnterSurface }:
     const tmp = new THREE.Vector3();
     const look = new THREE.Vector3();
     const cam = new THREE.Vector3();
+    const sunDir = new THREE.Vector3();
     const jezeroV = new THREE.Vector3(jezero.x, jezero.y, jezero.z);
     const north = new THREE.Vector3(0, 1, 0);
     const tangent = new THREE.Vector3().crossVectors(north, jezeroV).normalize();
@@ -295,7 +299,12 @@ export function GlobeView({ ls, sunFixed, approach, className, onEnterSurface }:
       const dist = 3.35 * (1 - a) + 1.08 * a;
       const toward = 0.28 + 0.72 * a;
       const side = 0.72 * (1 - a) + 0.08 * a;
-      cam.copy(jezeroV).multiplyScalar(toward).addScaledVector(tangent, side).setLength(dist);
+      cam.copy(jezeroV).multiplyScalar(toward).addScaledVector(tangent, side);
+      // Nudge toward the sun so midnight Jezero sits near a readable terminator.
+      const s = bodyFixedToThree(sunRef.current);
+      sunDir.set(s.x, s.y, s.z);
+      cam.addScaledVector(sunDir, 0.42 * (1 - a));
+      cam.setLength(dist);
       look.copy(jezeroV).multiplyScalar(0.04 + 0.96 * a);
       camera.position.copy(cam);
       camera.lookAt(look);
