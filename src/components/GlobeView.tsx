@@ -2,7 +2,15 @@ import { useEffect, useRef } from "react";
 import * as THREE from "three";
 import albedoUrl from "../assets/mars/mars-albedo.jpg";
 import bumpUrl from "../assets/mars/mars-bump.jpg";
-import { bodyFixedToThree, composeGlobeAlbedo, jezeroUnitFixed } from "../lib/globe";
+import {
+  ORBIT_FOV_DEG,
+  bodyFixedToThree,
+  composeGlobeAlbedo,
+  jezeroUnitFixed,
+  orbitCameraDistance,
+  portraitFaceUnitFixed,
+  yawToFaceCamera,
+} from "../lib/globe";
 import { JEZERO } from "../lib/jezero";
 import type { Vec3 } from "../lib/math";
 
@@ -17,8 +25,10 @@ type Props = {
 const ATMOS_VERT = `
 varying vec3 vNormal;
 varying vec3 vView;
+varying vec3 vWorldNormal;
 void main() {
   vNormal = normalize(normalMatrix * normal);
+  vWorldNormal = normalize(mat3(modelMatrix) * normal);
   vec4 mv = modelViewMatrix * vec4(position, 1.0);
   vView = normalize(-mv.xyz);
   gl_Position = projectionMatrix * mv;
@@ -27,13 +37,16 @@ void main() {
 
 const ATMOS_FRAG = `
 uniform vec3 uColor;
+uniform vec3 uSun;
 uniform float uPower;
 uniform float uOpacity;
 varying vec3 vNormal;
 varying vec3 vView;
+varying vec3 vWorldNormal;
 void main() {
-  float f = pow(1.0 - abs(dot(normalize(vNormal), normalize(vView))), uPower);
-  gl_FragColor = vec4(uColor, f * uOpacity);
+  float rim = pow(1.0 - abs(dot(normalize(vNormal), normalize(vView))), uPower);
+  float lit = clamp(dot(normalize(vWorldNormal), normalize(uSun)) * 0.55 + 0.45, 0.0, 1.0);
+  gl_FragColor = vec4(uColor, rim * mix(0.12, 1.0, lit) * uOpacity);
 }
 `;
 
@@ -65,7 +78,8 @@ export function GlobeView({ ls, sunFixed, approach, className, onEnterSurface }:
     host.appendChild(renderer.domElement);
 
     const scene = new THREE.Scene();
-    const camera = new THREE.PerspectiveCamera(40, 1, 0.05, 40);
+    const camera = new THREE.PerspectiveCamera(ORBIT_FOV_DEG, 1, 0.08, 80);
+    const aspectRef = { current: 1 };
     camera.up.set(0, 1, 0);
 
     const starGeo = new THREE.BufferGeometry();
@@ -75,9 +89,9 @@ export function GlobeView({ ls, sunFixed, approach, className, onEnterSurface }:
       const z = Math.random() * 2 - 1;
       const a = Math.random() * Math.PI * 2;
       const r = Math.sqrt(1 - z * z);
-      starPos[i * 3] = r * Math.cos(a) * 18;
-      starPos[i * 3 + 1] = z * 18;
-      starPos[i * 3 + 2] = r * Math.sin(a) * 18;
+      starPos[i * 3] = r * Math.cos(a) * 40;
+      starPos[i * 3 + 1] = z * 40;
+      starPos[i * 3 + 2] = r * Math.sin(a) * 40;
     }
     starGeo.setAttribute("position", new THREE.BufferAttribute(starPos, 3));
     const stars = new THREE.Points(
@@ -97,12 +111,12 @@ export function GlobeView({ ls, sunFixed, approach, className, onEnterSurface }:
     scene.add(marsGroup);
 
     const marsMat = new THREE.MeshStandardMaterial({
-      color: 0x8a5a3c,
-      roughness: 0.86,
-      metalness: 0.04,
-      bumpScale: 0.045,
+      color: 0xffffff,
+      roughness: 0.9,
+      metalness: 0.02,
+      bumpScale: 0.06,
       emissive: new THREE.Color(0xffffff),
-      emissiveIntensity: 0.34,
+      emissiveIntensity: 0.06,
     });
     const mars = new THREE.Mesh(new THREE.SphereGeometry(1, 96, 64), marsMat);
     marsGroup.add(mars);
@@ -148,33 +162,37 @@ export function GlobeView({ ls, sunFixed, approach, className, onEnterSurface }:
 
     const atmosMat = new THREE.ShaderMaterial({
       uniforms: {
-        uColor: { value: new THREE.Color(0xc48a62) },
-        uPower: { value: 2.7 },
-        uOpacity: { value: 0.48 },
+        uColor: { value: new THREE.Color(0xf2c090) },
+        uSun: { value: new THREE.Vector3(0.12, 0.88, 0.42) },
+        uPower: { value: 2.2 },
+        uOpacity: { value: 0.62 },
       },
       vertexShader: ATMOS_VERT,
       fragmentShader: ATMOS_FRAG,
       transparent: true,
       depthWrite: false,
+      depthTest: false,
       side: THREE.BackSide,
       blending: THREE.AdditiveBlending,
     });
-    const atmos = new THREE.Mesh(new THREE.SphereGeometry(1.045, 64, 48), atmosMat);
+    const atmos = new THREE.Mesh(new THREE.SphereGeometry(1.055, 64, 48), atmosMat);
     marsGroup.add(atmos);
 
     const hazeMat = new THREE.ShaderMaterial({
       uniforms: {
-        uColor: { value: new THREE.Color(0xe0a878) },
-        uPower: { value: 4.2 },
-        uOpacity: { value: 0.12 },
+        uColor: { value: new THREE.Color(0xf6d0a8) },
+        uSun: { value: new THREE.Vector3(0.12, 0.88, 0.42) },
+        uPower: { value: 3.6 },
+        uOpacity: { value: 0.18 },
       },
       vertexShader: ATMOS_VERT,
       fragmentShader: ATMOS_FRAG,
       transparent: true,
       depthWrite: false,
+      depthTest: false,
       blending: THREE.AdditiveBlending,
     });
-    marsGroup.add(new THREE.Mesh(new THREE.SphereGeometry(1.02, 64, 48), hazeMat));
+    marsGroup.add(new THREE.Mesh(new THREE.SphereGeometry(1.025, 64, 48), hazeMat));
 
     const jezeroBf = jezeroUnitFixed();
     const jezero = bodyFixedToThree(jezeroBf);
@@ -203,12 +221,13 @@ export function GlobeView({ ls, sunFixed, approach, className, onEnterSurface }:
       "pointer-events-none absolute left-0 top-0 text-[10px] uppercase tracking-[0.22em] text-ink/70";
     overlay.appendChild(label);
 
-    const sun = new THREE.DirectionalLight(0xffe4c8, 2.15);
+    const sun = new THREE.DirectionalLight(0xfff2dc, 2.4);
     scene.add(sun);
-    const fill = new THREE.AmbientLight(0x2a2018, 0.18);
+    const fill = new THREE.AmbientLight(0x120e0a, 0.03);
     scene.add(fill);
-    const rim = new THREE.HemisphereLight(0x6a4838, 0x0a0807, 0.32);
+    const rim = new THREE.HemisphereLight(0xc9a078, 0x050403, 0.1);
     scene.add(rim);
+    const portraitSun = new THREE.Vector3(0.12, 0.88, 0.42).normalize();
 
     const userYaw = { current: 0 };
     const targetYaw = { current: 0 };
@@ -224,11 +243,15 @@ export function GlobeView({ ls, sunFixed, approach, className, onEnterSurface }:
     const tangent = new THREE.Vector3().crossVectors(north, jezeroV).normalize();
     if (tangent.lengthSq() < 0.01) tangent.set(1, 0, 0);
 
-    const applySun = () => {
-      const s = bodyFixedToThree(sunRef.current);
-      sun.position.set(s.x, s.y, s.z).multiplyScalar(6);
+    const applySun = (blend = 0) => {
+      const midnight = bodyFixedToThree(sunRef.current);
+      sunDir.copy(portraitSun).lerp(new THREE.Vector3(midnight.x, midnight.y, midnight.z), blend);
+      sunDir.normalize();
+      sun.position.copy(sunDir).multiplyScalar(8);
+      atmosMat.uniforms.uSun!.value.copy(sunDir);
+      hazeMat.uniforms.uSun!.value.copy(sunDir);
     };
-    applySun();
+    applySun(0);
 
     const placeLabel = () => {
       tmp.copy(pinPos).applyMatrix4(marsGroup.matrixWorld).project(camera);
@@ -243,7 +266,8 @@ export function GlobeView({ ls, sunFixed, approach, className, onEnterSurface }:
       const w = host.clientWidth;
       const h = host.clientHeight;
       if (w < 2 || h < 2) return;
-      camera.aspect = w / h;
+      aspectRef.current = w / h;
+      camera.aspect = aspectRef.current;
       camera.updateProjectionMatrix();
       renderer.setSize(w, h, false);
     };
@@ -284,37 +308,34 @@ export function GlobeView({ ls, sunFixed, approach, className, onEnterSurface }:
     host.addEventListener("click", onClick);
 
     let raf = 0;
-    const reduced =
-      typeof window.matchMedia === "function" &&
-      window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const vallesYaw = yawToFaceCamera(portraitFaceUnitFixed());
+    const jezeroYaw = yawToFaceCamera(jezeroBf);
+    const portraitDir = new THREE.Vector3(0, 0.2, 1).normalize();
+    const jezeroLook = new THREE.Vector3();
 
     const tick = () => {
       const a = approachRef.current;
       if (a > 0.08) targetYaw.current += (0 - targetYaw.current) * 0.06;
       userYaw.current += (targetYaw.current - userYaw.current) * 0.12;
-      marsGroup.rotation.y = userYaw.current;
-      if (a < 0.08 && !reduced && !dragging) {
-        targetYaw.current += 0.0014;
-      }
+      marsGroup.rotation.y = vallesYaw * (1 - a) + jezeroYaw * a + userYaw.current;
 
-      const dist = 3.35 * (1 - a) + 1.08 * a;
+      const orbitDist = orbitCameraDistance(aspectRef.current, ORBIT_FOV_DEG);
+      const dist = orbitDist * (1 - a) + 1.12 * a;
       const toward = 0.28 + 0.72 * a;
       const side = 0.72 * (1 - a) + 0.08 * a;
-      cam.copy(jezeroV).multiplyScalar(toward).addScaledVector(tangent, side);
-      // Nudge toward the sun so midnight Jezero sits near a readable terminator.
-      const s = bodyFixedToThree(sunRef.current);
-      sunDir.set(s.x, s.y, s.z);
-      cam.addScaledVector(sunDir, 0.42 * (1 - a));
-      cam.setLength(dist);
-      look.copy(jezeroV).multiplyScalar(0.04 + 0.96 * a);
+      const jezeroCam = tmp.copy(jezeroV).multiplyScalar(toward).addScaledVector(tangent, side);
+      jezeroCam.setLength(dist);
+      cam.copy(portraitDir).setLength(dist).lerp(jezeroCam, a);
+      jezeroLook.copy(jezeroV).multiplyScalar(0.04 + 0.96 * a);
+      look.set(0, -0.04, 0).lerp(jezeroLook, a);
       camera.position.copy(cam);
       camera.lookAt(look);
-      camera.fov = 40 + 14 * a;
+      camera.fov = ORBIT_FOV_DEG + 16 * a;
       camera.updateProjectionMatrix();
 
-      atmosMat.uniforms.uOpacity!.value = 0.4 + 0.18 * a;
-      glowMat.opacity = 0.28 + 0.2 * Math.sin(performance.now() * 0.002);
-      applySun();
+      atmosMat.uniforms.uOpacity!.value = 0.55 + 0.12 * a;
+      glowMat.opacity = 0.22 + 0.16 * Math.sin(performance.now() * 0.002);
+      applySun(a);
       placeLabel();
       renderer.render(scene, camera);
       raf = requestAnimationFrame(tick);
