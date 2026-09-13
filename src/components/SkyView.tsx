@@ -32,7 +32,7 @@ const CAM_X = 0;
 const CAM_Y = HORIZON_EYE_Y;
 const CAM_Z = 0;
 const DEFAULT_YAW = 0.08;
-const DEFAULT_PITCH = 0.07;
+const DEFAULT_PITCH = 0.12;
 
 const MAG_BINS: { max: number; size: number }[] = [
   { max: 0.5, size: 8.4 },
@@ -212,7 +212,7 @@ export function SkyView({ sky, mode, className }: Props) {
         radius: HORIZON_RADIUS - 0.4,
         height: 3.9,
         span: 1.45,
-        yaw: 1.95,
+        yaw: 1.35,
         segments: 24,
         horizonV: 0.62,
         punchHoles: false,
@@ -503,7 +503,8 @@ function makeHorizonArc(
     punchHoles?: boolean;
   },
 ): { mesh: THREE.Mesh; dispose: () => void } {
-  const thetaStart = Math.PI * 1.5 - opts.span / 2 + opts.yaw;
+  // World azimuth 0 = north (−Z). Cylinder θ=0 is +Z; θ=π is −Z (north).
+  const thetaStart = Math.PI - opts.yaw - opts.span / 2;
   const geo = new THREE.CylinderGeometry(
     opts.radius,
     opts.radius,
