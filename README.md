@@ -1,4 +1,4 @@
-# jezero
+# birthday in mars
 
 A static page that computes the night sky above **Jezero crater, Mars** for a visitor’s full birthday (year, month, day).
 

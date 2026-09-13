@@ -25,7 +25,7 @@ export default function App() {
   return (
     <div className="min-h-screen bg-dusk text-ink">
       <header className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-6 pb-2 pt-8 sm:px-10">
-        <p className="font-serif text-2xl tracking-tight">jezero</p>
+        <p className="font-serif text-xl tracking-tight sm:text-2xl">birthday in mars</p>
         <ScaleToggle value={scale} onChange={setScaleExplicit} disabled={busy} />
         <p className="hidden text-[10px] font-medium uppercase tracking-[0.28em] text-mute sm:block">
           {JEZERO.name} · {JEZERO.rover}
@@ -65,8 +65,11 @@ export default function App() {
                     Surface · Jezero
                   </p>
                   <h1 className="mt-3 max-w-xl font-serif text-4xl leading-[1.1] sm:text-5xl">
-                    The night over the crater.
+                    birthday in mars
                   </h1>
+                  <p className="mt-3 max-w-lg font-serif text-xl text-ink/70 sm:text-2xl">
+                    The night over the crater.
+                  </p>
                 </div>
               ) : (
                 <div>
@@ -74,8 +77,11 @@ export default function App() {
                     Orbit
                   </p>
                   <h1 className="mt-3 max-w-xl font-serif text-4xl leading-[1.1] sm:text-5xl">
-                    Mars, at a quiet distance.
+                    birthday in mars
                   </h1>
+                  <p className="mt-3 max-w-lg font-serif text-xl text-ink/70 sm:text-2xl">
+                    Mars, at a quiet distance.
+                  </p>
                   <p className="mt-4 max-w-lg text-[14px] leading-relaxed text-ink/70">
                     A shaded globe — not a spacecraft mosaic. Lighting is the Sun
                     at Jezero’s local true solar midnight for the date below.
@@ -175,7 +181,7 @@ export default function App() {
           not a Viking or MGS mosaic. Sources are listed in the README.
         </p>
         <p className="mt-8 text-[10px] uppercase tracking-[0.28em]">
-          jezero · a static page · no accounts
+          birthday in mars · a static page · no accounts
         </p>
       </footer>
     </div>
