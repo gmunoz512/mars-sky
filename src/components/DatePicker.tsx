@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import type { CivilDate } from "../lib/sky";
 
 const MONTHS = [
@@ -27,9 +28,76 @@ type Props = {
   onChange: (next: CivilDate) => void;
 };
 
+function NumericField({
+  label,
+  value,
+  min,
+  max,
+  digits,
+  onCommit,
+}: {
+  label: string;
+  value: number;
+  min: number;
+  max: number;
+  digits: number;
+  onCommit: (n: number) => void;
+}) {
+  const [draft, setDraft] = useState(String(value));
+  const [focused, setFocused] = useState(false);
+
+  useEffect(() => {
+    if (!focused) setDraft(String(value));
+  }, [value, focused]);
+
+  const commit = (raw: string) => {
+    const n = Number(raw);
+    if (!Number.isFinite(n)) {
+      setDraft(String(value));
+      return;
+    }
+    onCommit(Math.min(max, Math.max(min, Math.round(n))));
+  };
+
+  return (
+    <label className="block">
+      <span className="mb-2 block text-[10px] font-medium uppercase tracking-[0.28em] text-mute">
+        {label}
+      </span>
+      <input
+        className={`${field} font-serif text-3xl`}
+        type="text"
+        inputMode="numeric"
+        autoComplete="off"
+        spellCheck={false}
+        value={focused ? draft : String(value)}
+        onFocus={(e) => {
+          setFocused(true);
+          setDraft(String(value));
+          e.currentTarget.select();
+        }}
+        onBlur={() => {
+          setFocused(false);
+          commit(draft);
+        }}
+        onChange={(e) => {
+          const next = e.target.value.replace(/[^\d]/g, "").slice(0, digits);
+          setDraft(next);
+          if (next.length === digits) {
+            const n = Number(next);
+            if (n >= min && n <= max) onCommit(n);
+          }
+        }}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") (e.target as HTMLInputElement).blur();
+        }}
+      />
+    </label>
+  );
+}
+
 export function DatePicker({ value, onChange }: Props) {
   const dim = daysInMonth(value.year, value.month);
-  const day = Math.min(value.day, dim);
 
   const set = (patch: Partial<CivilDate>) => {
     const next = { ...value, ...patch };
@@ -39,23 +107,14 @@ export function DatePicker({ value, onChange }: Props) {
 
   return (
     <div className="grid grid-cols-3 gap-5 sm:gap-8">
-      <label className="block">
-        <span className="mb-2 block text-[10px] font-medium uppercase tracking-[0.28em] text-mute">
-          Year
-        </span>
-        <input
-          className={`${field} font-serif text-3xl`}
-          type="number"
-          min={1600}
-          max={2399}
-          value={value.year}
-          onChange={(e) => {
-            const year = Number(e.target.value);
-            if (!Number.isFinite(year)) return;
-            set({ year: Math.min(2399, Math.max(1600, Math.round(year))) });
-          }}
-        />
-      </label>
+      <NumericField
+        label="Year"
+        value={value.year}
+        min={1600}
+        max={2399}
+        digits={4}
+        onCommit={(year) => set({ year })}
+      />
       <label className="block">
         <span className="mb-2 block text-[10px] font-medium uppercase tracking-[0.28em] text-mute">
           Month
@@ -72,23 +131,14 @@ export function DatePicker({ value, onChange }: Props) {
           ))}
         </select>
       </label>
-      <label className="block">
-        <span className="mb-2 block text-[10px] font-medium uppercase tracking-[0.28em] text-mute">
-          Day
-        </span>
-        <input
-          className={`${field} font-serif text-3xl`}
-          type="number"
-          min={1}
-          max={dim}
-          value={day}
-          onChange={(e) => {
-            const next = Number(e.target.value);
-            if (!Number.isFinite(next)) return;
-            set({ day: Math.min(dim, Math.max(1, Math.round(next))) });
-          }}
-        />
-      </label>
+      <NumericField
+        label="Day"
+        value={Math.min(value.day, dim)}
+        min={1}
+        max={dim}
+        digits={2}
+        onCommit={(day) => set({ day })}
+      />
     </div>
   );
 }

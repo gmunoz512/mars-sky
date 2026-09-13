@@ -54,7 +54,7 @@ export default function App() {
           <SkyView
             sky={sky}
             mode="locked"
-            className="aspect-[4/5] w-full rounded-sm border border-ink/10 sm:aspect-[5/4]"
+            className="aspect-[4/5] min-h-[22rem] w-full rounded-sm border border-ink/10 sm:aspect-[16/11] sm:min-h-[26rem]"
           />
           <div className="mt-4 flex flex-wrap items-center justify-between gap-3 text-[11px] text-mute">
             <p>Ls {sky.ls.toFixed(1)}° · {sky.season} at Jezero</p>

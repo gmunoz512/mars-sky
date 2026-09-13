@@ -16,12 +16,12 @@ type LabelEl = {
 };
 
 const MAG_BINS: { max: number; size: number }[] = [
-  { max: 0.5, size: 7.2 },
-  { max: 1.5, size: 4.8 },
-  { max: 2.5, size: 3.2 },
-  { max: 3.5, size: 2.2 },
-  { max: 4.5, size: 1.5 },
-  { max: 99, size: 1.05 },
+  { max: 0.5, size: 8.4 },
+  { max: 1.5, size: 5.6 },
+  { max: 2.5, size: 3.8 },
+  { max: 3.5, size: 2.6 },
+  { max: 4.5, size: 1.8 },
+  { max: 99, size: 1.2 },
 ];
 
 function bvToColor(bv: number): THREE.Color {
@@ -71,13 +71,25 @@ export function SkyView({ sky, mode, className }: Props) {
     host.appendChild(renderer.domElement);
 
     const scene = new THREE.Scene();
-    const camera = new THREE.PerspectiveCamera(62, 1, 0.05, 20);
-    camera.rotation.order = "YXZ";
+    const camera = new THREE.PerspectiveCamera(58, 1, 0.05, 20);
+    camera.up.set(0, 1, 0);
 
-    const yaw = { current: Math.PI };
-    const pitch = { current: 0.34 };
-    const targetYaw = { current: Math.PI };
-    const targetPitch = { current: 0.34 };
+    // Azimuth 0 = north (Mars NCP). Elevation in radians above the horizon.
+    const yaw = { current: 0.15 };
+    const pitch = { current: 0.52 };
+    const targetYaw = { current: 0.15 };
+    const targetPitch = { current: 0.52 };
+
+    const look = () => {
+      const el = pitch.current;
+      const az = yaw.current;
+      camera.position.set(0, 0.02, 0);
+      camera.lookAt(
+        Math.sin(az) * Math.cos(el),
+        Math.sin(el) + 0.02,
+        -Math.cos(az) * Math.cos(el),
+      );
+    };
 
     const starLayers: THREE.Points[] = MAG_BINS.map((bin) => {
       const points = new THREE.Points(
@@ -99,7 +111,7 @@ export function SkyView({ sky, mode, className }: Props) {
     const lineMat = new THREE.LineBasicMaterial({
       color: 0xb7c4d4,
       transparent: true,
-      opacity: 0.22,
+      opacity: 0.32,
       depthWrite: false,
     });
     scene.add(new THREE.LineSegments(lineGeo, lineMat));
@@ -109,7 +121,7 @@ export function SkyView({ sky, mode, className }: Props) {
 
     const ground = new THREE.Mesh(
       new THREE.CircleGeometry(8, 96),
-      new THREE.MeshBasicMaterial({ color: 0x120e0c }),
+      new THREE.MeshBasicMaterial({ color: 0x0b0908 }),
     );
     ground.rotation.x = -Math.PI / 2;
     ground.position.y = -0.012;
@@ -272,7 +284,7 @@ export function SkyView({ sky, mode, className }: Props) {
       lastX = e.clientX;
       lastY = e.clientY;
       targetYaw.current -= dx * 0.005;
-      targetPitch.current = Math.min(1.2, Math.max(-0.08, targetPitch.current + dy * 0.004));
+      targetPitch.current = Math.min(1.35, Math.max(0.06, targetPitch.current + dy * 0.004));
     };
     const onUp = () => {
       dragging = false;
@@ -296,8 +308,7 @@ export function SkyView({ sky, mode, className }: Props) {
       }
       yaw.current += (targetYaw.current - yaw.current) * 0.12;
       pitch.current += (targetPitch.current - pitch.current) * 0.12;
-      camera.rotation.y = yaw.current;
-      camera.rotation.x = -pitch.current;
+      look();
       placeLabels();
       renderer.render(scene, camera);
       raf = requestAnimationFrame(tick);
