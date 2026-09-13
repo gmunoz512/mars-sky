@@ -1,11 +1,16 @@
 import { useEffect, useRef } from "react";
 import * as THREE from "three";
+import climbUrl from "../assets/mars/jezero-climb.jpg";
+import deltaUrl from "../assets/mars/jezero-delta.jpg";
+import groundUrl from "../assets/mars/jezero-ground.jpg";
+import horizonUrl from "../assets/mars/jezero-horizon.jpg";
 import type { SkyLabel, SkyModel, SkyStar } from "../lib/sky";
 import {
-  FLOOR_BOULDERS,
-  buildGritTexture,
-  buildJezeroTerrainGeometry,
-  sampleJezeroHeight,
+  HORIZON_EYE_Y,
+  HORIZON_HEIGHT,
+  HORIZON_RADIUS,
+  buildPhotoGroundGeometry,
+  sampleGroundHeight,
 } from "../lib/terrain";
 
 type Mode = "locked" | "look";
@@ -23,11 +28,11 @@ type LabelEl = {
 
 /** Stars / lines / bodies sit outside the terrain so the rim can occlude them. */
 const SKY_RADIUS = 48;
-const CAM_X = 1.55;
-const CAM_Y = 0.2;
-const CAM_Z = 0.42;
-const DEFAULT_YAW = 0.22;
-const DEFAULT_PITCH = 0.09;
+const CAM_X = 0;
+const CAM_Y = HORIZON_EYE_Y;
+const CAM_Z = 0;
+const DEFAULT_YAW = 0.08;
+const DEFAULT_PITCH = 0.12;
 
 const MAG_BINS: { max: number; size: number }[] = [
   { max: 0.5, size: 8.4 },
@@ -142,67 +147,91 @@ export function SkyView({ sky, mode, className }: Props) {
     const skyDome = makeMartianSkyDome();
     scene.add(skyDome);
 
-    // Unlit fill — midnight Sun is below the horizon; keep the crater readable
-    // (not a photometric night exposure). Hue from Perseverance public stills.
-    const grit = buildGritTexture();
-    const terrainGeo = buildJezeroTerrainGeometry();
-    const terrainMat = new THREE.MeshBasicMaterial({
-      vertexColors: true,
-      map: grit,
+    const photo: { dispose: () => void } = { dispose() {} };
+    const loader = new THREE.TextureLoader();
+    let cancelled = false;
+    void Promise.all([
+      loader.loadAsync(horizonUrl),
+      loader.loadAsync(groundUrl),
+      loader.loadAsync(deltaUrl),
+      loader.loadAsync(climbUrl),
+    ]).then(([horizonRaw, groundTex, deltaRaw, climbRaw]) => {
+      if (cancelled) {
+        horizonRaw.dispose();
+        groundTex.dispose();
+        deltaRaw.dispose();
+        climbRaw.dispose();
+        return;
+      }
+      const aniso = renderer.capabilities.getMaxAnisotropy();
+      groundTex.colorSpace = THREE.SRGBColorSpace;
+      groundTex.anisotropy = aniso;
+      groundTex.wrapS = THREE.RepeatWrapping;
+      groundTex.wrapT = THREE.RepeatWrapping;
+      groundTex.repeat.set(1.8, 1.8);
+
+      const horizonTex = fadePhoto(horizonRaw, { top: 0.2 });
+      const deltaTex = fadePhoto(deltaRaw, { top: 0.28, side: 0.04 });
+      const climbTex = fadePhoto(climbRaw, { top: 0.42, side: 0.06 });
+      horizonRaw.dispose();
+      deltaRaw.dispose();
+      climbRaw.dispose();
+      horizonTex.anisotropy = aniso;
+      deltaTex.anisotropy = aniso;
+      climbTex.anisotropy = aniso;
+
+      const groundGeo = buildPhotoGroundGeometry();
+      const groundMat = new THREE.MeshBasicMaterial({ map: groundTex });
+      const ground = new THREE.Mesh(groundGeo, groundMat);
+      scene.add(ground);
+
+      const wrap = makeHorizonArc(horizonTex, {
+        radius: HORIZON_RADIUS,
+        height: HORIZON_HEIGHT,
+        span: Math.PI * 2,
+        yaw: 0,
+        segments: 96,
+        horizonV: 0.78,
+      });
+      scene.add(wrap.mesh);
+
+      // Default look: Jezero delta butte (PIA24921), slightly inside the 360 wrap.
+      const delta = makeHorizonArc(deltaTex, {
+        radius: HORIZON_RADIUS - 0.55,
+        height: 6.2,
+        span: 1.55,
+        yaw: 0,
+        segments: 32,
+        horizonV: 0.48,
+        punchHoles: false,
+      });
+      scene.add(delta.mesh);
+
+      // Mid-climb vista across the crater (PIA26378) when looking east-southeast.
+      const climb = makeHorizonArc(climbTex, {
+        radius: HORIZON_RADIUS - 0.4,
+        height: 3.9,
+        span: 1.45,
+        yaw: 1.35,
+        segments: 24,
+        horizonV: 0.62,
+        punchHoles: false,
+      });
+      scene.add(climb.mesh);
+
+      photo.dispose = () => {
+        scene.remove(ground, wrap.mesh, delta.mesh, climb.mesh);
+        groundGeo.dispose();
+        groundMat.dispose();
+        wrap.dispose();
+        delta.dispose();
+        climb.dispose();
+        groundTex.dispose();
+        horizonTex.dispose();
+        deltaTex.dispose();
+        climbTex.dispose();
+      };
     });
-    const terrain = new THREE.Mesh(terrainGeo, terrainMat);
-    scene.add(terrain);
-
-    const farFloor = new THREE.Mesh(
-      new THREE.CircleGeometry(42, 72),
-      new THREE.MeshBasicMaterial({ color: 0xc47a4a, map: grit }),
-    );
-    farFloor.rotation.x = -Math.PI / 2;
-    farFloor.position.y = -0.18;
-    scene.add(farFloor);
-
-    const boulderGeo = new THREE.DodecahedronGeometry(1, 0);
-    const boulderMat = new THREE.MeshBasicMaterial({
-      color: 0xb4683c,
-      map: grit,
-    });
-    for (const b of FLOOR_BOULDERS) {
-      const mesh = new THREE.Mesh(boulderGeo, boulderMat);
-      mesh.position.set(b.x, sampleJezeroHeight(b.x, b.z) + b.r * 0.45, b.z);
-      mesh.scale.set(b.r, b.r * 0.72, b.r * 1.1);
-      mesh.rotation.set(b.x * 0.4, b.z * 0.3, b.r);
-      scene.add(mesh);
-    }
-
-    const haze = new THREE.Mesh(
-      new THREE.RingGeometry(8, 20, 96),
-      new THREE.MeshBasicMaterial({
-        color: 0xd49258,
-        transparent: true,
-        opacity: 0.14,
-        side: THREE.DoubleSide,
-        depthWrite: false,
-      }),
-    );
-    haze.rotation.x = -Math.PI / 2;
-    haze.position.y = 0.55;
-    haze.renderOrder = 1;
-    scene.add(haze);
-
-    const twilight = new THREE.Mesh(
-      new THREE.RingGeometry(7.2, 14, 96),
-      new THREE.MeshBasicMaterial({
-        color: 0xf0b478,
-        transparent: true,
-        opacity: 0.12,
-        side: THREE.DoubleSide,
-        depthWrite: false,
-      }),
-    );
-    twilight.rotation.x = -Math.PI / 2;
-    twilight.position.y = 0.72;
-    twilight.renderOrder = 1;
-    scene.add(twilight);
 
     const compassSprites: THREE.Sprite[] = [];
     for (const c of [
@@ -212,11 +241,11 @@ export function SkyView({ sky, mode, className }: Props) {
       { t: "W", a: 270 },
     ]) {
       const az = (c.a * Math.PI) / 180;
-      const x = Math.sin(az) * 7.1;
-      const z = -Math.cos(az) * 7.1;
+      const x = Math.sin(az) * 6.4;
+      const z = -Math.cos(az) * 6.4;
       const sprite = makeTextSprite(c.t);
-      sprite.position.set(x, sampleJezeroHeight(x, z) + 0.28, z);
-      sprite.scale.set(1.15, 0.58, 1);
+      sprite.position.set(x, sampleGroundHeight(x, z) + 0.22, z);
+      sprite.scale.set(0.85, 0.42, 1);
       scene.add(sprite);
       compassSprites.push(sprite);
     }
@@ -383,6 +412,8 @@ export function SkyView({ sky, mode, className }: Props) {
     raf = requestAnimationFrame(tick);
 
     return () => {
+      cancelled = true;
+      photo.dispose();
       cancelAnimationFrame(raf);
       ro.disconnect();
       host.removeEventListener("pointerdown", onDown);
@@ -391,17 +422,6 @@ export function SkyView({ sky, mode, className }: Props) {
       host.removeEventListener("pointercancel", onUp);
       skyDome.geometry.dispose();
       (skyDome.material as THREE.Material).dispose();
-      terrainGeo.dispose();
-      terrainMat.dispose();
-      farFloor.geometry.dispose();
-      (farFloor.material as THREE.Material).dispose();
-      boulderGeo.dispose();
-      boulderMat.dispose();
-      grit.dispose();
-      haze.geometry.dispose();
-      (haze.material as THREE.Material).dispose();
-      twilight.geometry.dispose();
-      (twilight.material as THREE.Material).dispose();
       compassSprites.forEach((sprite) => {
         const mat = sprite.material as THREE.SpriteMaterial;
         mat.map?.dispose();
@@ -431,6 +451,87 @@ export function SkyView({ sky, mode, className }: Props) {
       <div ref={overlayRef} className="pointer-events-none absolute inset-0 font-sans" />
     </div>
   );
+}
+
+function smooth01(t: number): number {
+  const u = Math.min(1, Math.max(0, t));
+  return u * u * (3 - 2 * u);
+}
+
+/** Fade daylight sky (and optional side edges) so photos blend into the midnight sky. */
+function fadePhoto(tex: THREE.Texture, opts?: { top?: number; side?: number }): THREE.CanvasTexture {
+  const img = tex.image as HTMLImageElement | ImageBitmap;
+  const w = img.width;
+  const h = img.height;
+  const canvas = document.createElement("canvas");
+  canvas.width = w;
+  canvas.height = h;
+  const ctx = canvas.getContext("2d")!;
+  ctx.drawImage(img as CanvasImageSource, 0, 0);
+  const data = ctx.getImageData(0, 0, w, h);
+  const top = opts?.top ?? 0.2;
+  const side = opts?.side ?? 0;
+  for (let y = 0; y < h; y += 1) {
+    const ty = y / Math.max(1, h - 1);
+    const ay = ty < top ? smooth01(ty / top) : 1;
+    for (let x = 0; x < w; x += 1) {
+      let a = ay;
+      if (side > 0) {
+        const tx = x / Math.max(1, w - 1);
+        a *= smooth01(tx / side) * smooth01((1 - tx) / side);
+      }
+      data.data[(y * w + x) * 4 + 3] = Math.round(255 * a);
+    }
+  }
+  ctx.putImageData(data, 0, 0);
+  const out = new THREE.CanvasTexture(canvas);
+  out.colorSpace = THREE.SRGBColorSpace;
+  out.wrapS = THREE.ClampToEdgeWrapping;
+  out.needsUpdate = true;
+  return out;
+}
+
+function makeHorizonArc(
+  map: THREE.Texture,
+  opts: {
+    radius: number;
+    height: number;
+    span: number;
+    yaw: number;
+    segments: number;
+    horizonV: number;
+    punchHoles?: boolean;
+  },
+): { mesh: THREE.Mesh; dispose: () => void } {
+  // World azimuth 0 = north (−Z). Cylinder θ=0 is +Z; θ=π is −Z (north).
+  const thetaStart = Math.PI - opts.yaw - opts.span / 2;
+  const geo = new THREE.CylinderGeometry(
+    opts.radius,
+    opts.radius,
+    opts.height,
+    opts.segments,
+    1,
+    true,
+    thetaStart,
+    opts.span,
+  );
+  const mat = new THREE.MeshBasicMaterial({
+    map,
+    transparent: true,
+    side: THREE.BackSide,
+    depthWrite: opts.punchHoles !== false,
+    alphaTest: 0.04,
+  });
+  const mesh = new THREE.Mesh(geo, mat);
+  if (opts.punchHoles === false) mesh.renderOrder = 1;
+  mesh.position.y = HORIZON_EYE_Y - opts.horizonV * opts.height + opts.height / 2;
+  return {
+    mesh,
+    dispose() {
+      geo.dispose();
+      mat.dispose();
+    },
+  };
 }
 
 function makeMartianSkyDome(): THREE.Mesh {

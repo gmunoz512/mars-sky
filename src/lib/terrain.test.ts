@@ -1,58 +1,45 @@
 import { describe, expect, it } from "vitest";
-import { RIM_RADIUS, buildJezeroTerrainGeometry, sampleJezeroHeight } from "./terrain";
+import {
+  GROUND_RADIUS,
+  TERRAIN_CREDIT,
+  TERRAIN_SOURCES,
+  buildPhotoGroundGeometry,
+  sampleGroundHeight,
+} from "./terrain";
 
-describe("sampleJezeroHeight", () => {
-  it("puts the eastern rim above the crater floor", () => {
-    const floor = sampleJezeroHeight(0, 0);
-    const eastRim = sampleJezeroHeight(RIM_RADIUS, 0);
-    expect(eastRim).toBeGreaterThan(floor + 0.35);
-  });
-
-  it("breaks the western rim relative to the east (delta inlet)", () => {
-    const east = sampleJezeroHeight(RIM_RADIUS, 0);
-    const west = sampleJezeroHeight(-RIM_RADIUS, 0);
-    expect(west).toBeLessThan(east - 0.25);
-  });
-
-  it("raises a western fan inside the bowl", () => {
-    const floor = sampleJezeroHeight(0.4, 0.2);
-    const fan = sampleJezeroHeight(-5.2, -0.4);
-    expect(fan).toBeGreaterThan(floor);
-  });
-
-  it("returns finite heights across the grid", () => {
-    for (let x = -20; x <= 20; x += 5) {
-      for (let z = -20; z <= 20; z += 5) {
-        expect(Number.isFinite(sampleJezeroHeight(x, z))).toBe(true);
-      }
+describe("TERRAIN_SOURCES", () => {
+  it("cites the preferred Mastcam-Z public-domain mosaics", () => {
+    const pias = TERRAIN_SOURCES.map((s) => s.pia);
+    expect(pias).toEqual(["PIA24921", "PIA24663", "PIA26378"]);
+    expect(TERRAIN_CREDIT).toContain("NASA");
+    for (const src of TERRAIN_SOURCES) {
+      expect(src.url).toContain(src.pia);
     }
   });
 });
 
-describe("buildJezeroTerrainGeometry", () => {
-  it("emits positions, vertex colors, and an index", () => {
-    const geo = buildJezeroTerrainGeometry();
+describe("sampleGroundHeight", () => {
+  it("stays a shallow ripple, not a cartoon crater wall", () => {
+    let max = 0;
+    for (let x = -GROUND_RADIUS; x <= GROUND_RADIUS; x += 1) {
+      for (let z = -GROUND_RADIUS; z <= GROUND_RADIUS; z += 1) {
+        const y = sampleGroundHeight(x, z);
+        expect(Number.isFinite(y)).toBe(true);
+        max = Math.max(max, Math.abs(y));
+      }
+    }
+    expect(max).toBeLessThan(0.05);
+  });
+});
+
+describe("buildPhotoGroundGeometry", () => {
+  it("emits an indexed disc with UVs for the photo albedo", () => {
+    const geo = buildPhotoGroundGeometry();
     const pos = geo.getAttribute("position");
-    const col = geo.getAttribute("color");
-    expect(pos.count).toBeGreaterThan(1000);
-    expect(col.count).toBe(pos.count);
+    const uv = geo.getAttribute("uv");
+    expect(pos.count).toBeGreaterThan(20);
+    expect(uv.count).toBe(pos.count);
     expect(geo.getIndex()?.count).toBeGreaterThan(pos.count);
-    let maxY = -Infinity;
-    let minY = Infinity;
-    for (let i = 0; i < pos.count; i += 1) {
-      const y = pos.getY(i);
-      maxY = Math.max(maxY, y);
-      minY = Math.min(minY, y);
-    }
-    expect(maxY).toBeGreaterThan(minY + 0.4);
-    let sumR = 0;
-    let sumG = 0;
-    for (let i = 0; i < col.count; i += 1) {
-      expect(col.getX(i)).toBeGreaterThan(0.28);
-      sumR += col.getX(i);
-      sumG += col.getY(i);
-    }
-    expect(sumR / col.count).toBeGreaterThan(sumG / col.count);
     geo.dispose();
   });
 });

@@ -45,7 +45,7 @@ For a user/org root site instead, set `VITE_BASE=/` in the workflow and host at 
 A single full-viewport canvas (the page does not scroll). Overlay chrome only: title, birthday fields, zoom, footnotes.
 
 1. **Orbit** (default) — a dusty red/ochre Mars globe fills the frame, thin rust limb, Jezero pin. Drag to turn. The date sets midnight sunlight and coarse polar caps. Generated albedo, not a Viking/MGS mosaic.
-2. **Surface** — standing on a Jezero-like crater floor: dusty ochre ground and a broken western rim in the lower frame, butterscotch sky above. Hipparcos stars, IAU figures, Earth/planets when up, Phobos and Deimos. Drag to look around. The mesh is a schematic bowl (western-delta inlet), not a HiRISE DEM or rover panorama; vertex colors follow NASA/JPL-Caltech/ASU Perseverance Mastcam-Z / Navcam public-domain Jezero photographs (e.g. [PIA24487](https://photojournal.jpl.nasa.gov/catalog/PIA24487)). Midnight lighting is lifted so the rocks stay readable.
+2. **Surface** — standing in Jezero: real Perseverance Mastcam-Z photography on the ground and around the horizon, computed night sky above. Hipparcos stars, IAU figures, Earth/planets when up, Phobos and Deimos. Drag to look around. Default view is the [PIA24921](https://photojournal.jpl.nasa.gov/catalog/PIA24921) delta butte; look-around also uses [PIA24663](https://photojournal.jpl.nasa.gov/catalog/PIA24663) (Van Zyl 360) and [PIA26378](https://photojournal.jpl.nasa.gov/catalog/PIA26378) (mid-climb). NASA/JPL-Caltech/ASU/MSSS. Not a HiRISE DEM. Daylight photos; midnight sky.
 
 **Interaction:** **Zoom in**, the crater pin, or scroll/pinch in. Completing or changing a birthday (year + month + day) also zooms in automatically; further date edits update the sky in place. **Zoom out** or scroll/pinch out returns to the globe. `prefers-reduced-motion` skips the tween.
 
@@ -69,7 +69,7 @@ Default date is 18 February 2021 (Perseverance landing). Changing year, month, o
 | Local midnight | Sun hour angle 180° at Jezero | Nearest midnight to 12:00 UTC on the selected civil date. A Mars sol is 24h 39m 35s. |
 | Season (Ls) | Allison & McEwen 2000 / [NASA Mars24](https://www.giss.nasa.gov/tools/mars24/help/algorithm.html) | Label only; coarse polar-cap size on the orbit globe. |
 | Orbit globe | Generated albedo + limb glow | Schematic. Sun direction is the real Mars-centered vector at the selected midnight. |
-| Surface terrain | Procedural Jezero-inspired height field; ochre palette from NASA/JPL-Caltech/ASU Perseverance public-domain images (e.g. PIA24487) | Schematic crater bowl + broken western rim. Not HiRISE, MOLA, or a photogrammetric stitch. Night fill lighting is lifted for readability. |
+| Surface terrain | Perseverance Mastcam-Z: [PIA24921](https://photojournal.jpl.nasa.gov/catalog/PIA24921) (delta), [PIA24663](https://photojournal.jpl.nasa.gov/catalog/PIA24663) (Van Zyl 360), [PIA26378](https://photojournal.jpl.nasa.gov/catalog/PIA26378) (mid-climb). NASA/JPL-Caltech/ASU/MSSS. Collection: [mastcamz.asu.edu](https://mastcamz.asu.edu/mastcam-zs-360-panorama-collection/) | Textured ground + photo cylinders from compressed in-repo crops (`src/assets/mars/`). Not a HiRISE/MOLA mesh. Daylight albedo under a midnight sky. Rover hardware cropped out. Photo azimuth is not surveyed to Jezero north. |
 | Phobos, Deimos | Jacobson (2010), *AJ* 139, 668, Table 6; Phobos ½ṅ from Brozović, Jacobson & Park (2025), *AJ* | Mean precessing ellipses on each Laplace plane, not JPL MAR099 / Horizons. |
 
 ### Phobos and Deimos accuracy
@@ -84,4 +84,4 @@ Vite, React, TypeScript, Three.js, Tailwind CSS, astronomy-engine. No backend.
 
 ## License notes
 
-Application code in this repository is available for reuse with the project. Star and constellation data retain their upstream terms (d3-celestial BSD-2-Clause; Hipparcos: ESA). Cite the papers above if you reuse the moon model. Perseverance / Mastcam-Z stills used only as a color reference are NASA/JPL-Caltech public-domain imagery.
+Application code in this repository is available for reuse with the project. Star and constellation data retain their upstream terms (d3-celestial BSD-2-Clause; Hipparcos: ESA). Cite the papers above if you reuse the moon model. Surface photographs are NASA/JPL-Caltech/ASU/MSSS public-domain imagery (PIA24921, PIA24663, PIA26378); see [`src/assets/mars/SOURCES.md`](src/assets/mars/SOURCES.md).
