@@ -4,26 +4,8 @@ import { rad } from "./math";
 
 /** Jezero as a unit vector in Mars body-fixed (IAU +X Airy-0, +Z north). */
 export function jezeroUnitFixed(): Vec3 {
-  return latLonUnitFixed(JEZERO.latitudeDeg, JEZERO.longitudeEastDeg);
-}
-
-/** Melas / Coprates — the canyon scar on the classic Mars portrait. */
-export const VALLES_MARINERIS = { latitudeDeg: -13.9, longitudeEastDeg: -59.2 };
-
-/** Frame Valles Marineris plus the Tharsis volcanoes, as in a Viking-era globe. */
-export const PORTRAIT_FACE = { latitudeDeg: -8.0, longitudeEastDeg: -78.0 };
-
-export function portraitFaceUnitFixed(): Vec3 {
-  return latLonUnitFixed(PORTRAIT_FACE.latitudeDeg, PORTRAIT_FACE.longitudeEastDeg);
-}
-
-export function vallesMarinerisUnitFixed(): Vec3 {
-  return latLonUnitFixed(VALLES_MARINERIS.latitudeDeg, VALLES_MARINERIS.longitudeEastDeg);
-}
-
-export function latLonUnitFixed(latDeg: number, lonEastDeg: number): Vec3 {
-  const lat = rad(latDeg);
-  const lon = rad(lonEastDeg);
+  const lat = rad(JEZERO.latitudeDeg);
+  const lon = rad(JEZERO.longitudeEastDeg);
   const c = Math.cos(lat);
   return {
     x: c * Math.cos(lon),
@@ -35,12 +17,6 @@ export function latLonUnitFixed(latDeg: number, lonEastDeg: number): Vec3 {
 /** Body-fixed → Three.js with north as +Y. */
 export function bodyFixedToThree(v: Vec3): Vec3 {
   return { x: v.x, y: v.z, z: -v.y };
-}
-
-/** Yaw that faces a body-fixed site toward the camera on +Z. */
-export function yawToFaceCamera(v: Vec3): number {
-  const t = bodyFixedToThree(v);
-  return -Math.atan2(t.x, t.z);
 }
 
 export const GLOBE_CREDIT = "NASA/JPL/USGS";
@@ -63,13 +39,9 @@ export function polarCapExtents(lsDeg: number): { northDeg: number; southDeg: nu
   return { northDeg: 12 - swing, southDeg: 12 + swing };
 }
 
-function clampByte(n: number): number {
-  return Math.max(0, Math.min(255, Math.round(n)));
-}
-
 /**
- * Draw the Viking mosaic, warm it toward the classic ochre portrait,
- * and add a light seasonal frost overlay.
+ * Draw the Viking mosaic and a light seasonal frost overlay.
+ * Mosaic already carries typical caps; this only breathes them with Ls.
  */
 export function composeGlobeAlbedo(source: CanvasImageSource, lsDeg: number): HTMLCanvasElement {
   const w = 2048;
@@ -85,26 +57,16 @@ export function composeGlobeAlbedo(source: CanvasImageSource, lsDeg: number): HT
   const data = img.data;
   for (let y = 0; y < h; y += 1) {
     const lat = 90 - (y / (h - 1)) * 180;
-    let cap = 0;
-    if (lat > 90 - northDeg) cap = (lat - (90 - northDeg)) / northDeg;
-    else if (lat < -90 + southDeg) cap = (-90 + southDeg - lat) / southDeg;
-    const frost = Math.min(1, Math.max(0, cap)) ** 1.35 * 0.32;
+    let t = 0;
+    if (lat > 90 - northDeg) t = (lat - (90 - northDeg)) / northDeg;
+    else if (lat < -90 + southDeg) t = (-90 + southDeg - lat) / southDeg;
+    if (t <= 0) continue;
+    const fade = Math.min(1, Math.max(0, t)) ** 1.35 * 0.42;
     for (let x = 0; x < w; x += 1) {
       const i = (y * w + x) * 4;
-      // JPEG is already warmed; keep canyon darks and only a light ochre nudge.
-      let r = data[i]! * 1.04 + 2;
-      let g = data[i + 1]! * 1.01;
-      let b = data[i + 2]! * 0.94;
-      const mid = (r + g + b) / 3;
-      r = mid + (r - mid) * 1.18;
-      g = mid + (g - mid) * 1.16;
-      b = mid + (b - mid) * 1.14;
-      r = r + (236 - r) * frost;
-      g = g + (228 - g) * frost;
-      b = b + (216 - b) * frost;
-      data[i] = clampByte(r);
-      data[i + 1] = clampByte(g);
-      data[i + 2] = clampByte(b);
+      data[i] = Math.round(data[i]! + (236 - data[i]!) * fade);
+      data[i + 1] = Math.round(data[i + 1]! + (228 - data[i + 1]!) * fade);
+      data[i + 2] = Math.round(data[i + 2]! + (216 - data[i + 2]!) * fade);
     }
   }
   ctx.putImageData(img, 0, 0);

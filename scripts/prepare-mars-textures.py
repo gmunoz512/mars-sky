@@ -124,19 +124,6 @@ def blend_wrap_seam(im: Image.Image, blend: int = 12, top_frac: float = 1) -> Im
     return out
 
 
-def warm_ochre(im: Image.Image, lift: float = 8) -> Image.Image:
-    """Nudge NASA mosaics toward the cream-ochre globe / rover-still look."""
-    arr = np.asarray(im.convert("RGB"), dtype=np.float32)
-    r = arr[:, :, 0] * 1.12 + lift
-    g = arr[:, :, 1] * 1.03 + lift * 0.4
-    b = arr[:, :, 2] * 0.88
-    mid = (r + g + b) / 3.0
-    r = np.clip(mid + (r - mid) * 1.1, 0, 255)
-    g = np.clip(mid + (g - mid) * 1.1, 0, 255)
-    b = np.clip(mid + (b - mid) * 1.1, 0, 255)
-    return Image.fromarray(np.stack([r, g, b], axis=2).astype(np.uint8), "RGB")
-
-
 def make_bump(albedo: Image.Image) -> Image.Image:
     gray = ImageOps.grayscale(albedo)
     hipass = Image.blend(gray, gray.filter(ImageFilter.GaussianBlur(radius=2.2)), 0.55)
@@ -148,10 +135,8 @@ def prepare_surface(van: Image.Image) -> None:
     # Keep full width so the cylinder join is the real 360 wrap. Rover deck
     # starts ~26% down; inpaint any mast that still pokes into this band.
     # Stop above the rover deck / RSM mast that sit on the 360 join.
-    # Include the butterscotch sky strip so daytime haze matches rover stills.
-    band = van.crop((0, int(0.0 * h), w, int(0.238 * h)))
+    band = van.crop((0, int(0.020 * h), w, int(0.232 * h)))
     band = inpaint_rover(band)
-    band = warm_ochre(band, lift=4)
     # Horizon already wraps; blend only the sky/far hills so inpaint
     # in the near corners cannot stripe the join.
     band = blend_wrap_seam(band, blend=12, top_frac=0.62)
@@ -166,9 +151,8 @@ def prepare_surface(van: Image.Image) -> None:
 
 
 def prepare_globe(mdim: Image.Image) -> None:
-    albedo = warm_ochre(mdim.convert("RGB").resize((2048, 1024), Image.Resampling.LANCZOS), lift=6)
-    albedo = albedo.filter(ImageFilter.UnsharpMask(radius=1.6, percent=160, threshold=2))
-    albedo.save(OUT / "mars-albedo.jpg", "JPEG", quality=88, optimize=True, progressive=True)
+    albedo = mdim.convert("RGB").resize((2048, 1024), Image.Resampling.LANCZOS)
+    albedo.save(OUT / "mars-albedo.jpg", "JPEG", quality=86, optimize=True, progressive=True)
     make_bump(albedo).save(OUT / "mars-bump.jpg", "JPEG", quality=82, optimize=True, progressive=True)
 
 

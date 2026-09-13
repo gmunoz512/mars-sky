@@ -9,7 +9,7 @@ Credit: **NASA/JPL-Caltech/ASU/MSSS**.
 
 | File | Source | What we shipped |
 | --- | --- | --- |
-| `jezero-horizon.jpg` | [PIA24663](https://photojournal.jpl.nasa.gov/catalog/PIA24663) Van Zyl Overlook 360° | Full-width 360 wrap including the butterscotch sky strip; rover hardware cropped/inpainted; 2048 px wide |
+| `jezero-horizon.jpg` | [PIA24663](https://photojournal.jpl.nasa.gov/catalog/PIA24663) Van Zyl Overlook 360° | Full-width 360 wrap, rover hardware cropped/inpainted, 2048 px wide |
 | `jezero-ground.jpg` | Same PIA24663 mosaic | Near-field rocks / soil, 1536² |
 
 One cylinder only. PIA24921 and PIA26378 are not composited as extra panels —
@@ -23,7 +23,7 @@ Credit: **NASA/JPL/USGS**.
 
 | File | Source | What we shipped |
 | --- | --- | --- |
-| `mars-albedo.jpg` | [USGS Viking MDIM 2.1 colorized global mosaic](https://astrogeology.usgs.gov/search/map/mars_viking_colorized_global_mosaic_232m) (1 km/px reduction on [Wikimedia Commons](https://commons.wikimedia.org/wiki/File:Mars_Viking_MDIM21_ClrMosaic_1km.jpg)) | Equirectangular 2048×1024, lon 0° at center (Airy-0); warmed/sharpened to match a classic Valles Marineris portrait |
+| `mars-albedo.jpg` | [USGS Viking MDIM 2.1 colorized global mosaic](https://astrogeology.usgs.gov/search/map/mars_viking_colorized_global_mosaic_232m) (1 km/px reduction on [Wikimedia Commons](https://commons.wikimedia.org/wiki/File:Mars_Viking_MDIM21_ClrMosaic_1km.jpg)) | Equirectangular 2048×1024, lon 0° at center (Airy-0) |
 | `mars-bump.jpg` | Derived from the same mosaic luminance | High-pass bump for dusty relief |
 
 Regenerate with `python3 scripts/prepare-mars-textures.py` (needs Pillow + NumPy).
