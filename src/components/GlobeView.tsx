@@ -5,8 +5,10 @@ import bumpUrl from "../assets/mars/mars-bump.jpg";
 import {
   ORBIT_FOV_DEG,
   bodyFixedToThree,
+  clampOrbitPitch,
   composeGlobeAlbedo,
   jezeroUnitFixed,
+  orbitCameraDir,
   orbitCameraDistance,
   portraitFaceUnitFixed,
   yawToFaceCamera,
@@ -229,10 +231,14 @@ export function GlobeView({ ls, sunFixed, approach, className, onEnterSurface }:
     scene.add(rim);
     const portraitSun = new THREE.Vector3(0.1, 0.7, 0.64).normalize();
 
-    const userYaw = { current: 0 };
-    const targetYaw = { current: 0 };
+    const userAz = { current: 0 };
+    const userEl = { current: 0 };
+    const targetAz = { current: 0 };
+    const targetEl = { current: 0 };
     let dragging = false;
+    let dragged = false;
     let lastX = 0;
+    let lastY = 0;
 
     const tmp = new THREE.Vector3();
     const look = new THREE.Vector3();
@@ -278,19 +284,27 @@ export function GlobeView({ ls, sunFixed, approach, className, onEnterSurface }:
     const onDown = (e: PointerEvent) => {
       if (approachRef.current > 0.12) return;
       dragging = true;
+      dragged = false;
       lastX = e.clientX;
+      lastY = e.clientY;
       host.setPointerCapture(e.pointerId);
     };
     const onMove = (e: PointerEvent) => {
       if (!dragging) return;
-      targetYaw.current += (e.clientX - lastX) * 0.005;
+      const dx = e.clientX - lastX;
+      const dy = e.clientY - lastY;
       lastX = e.clientX;
+      lastY = e.clientY;
+      if (dx * dx + dy * dy > 4) dragged = true;
+      // Finger follows the mosaic: drag right / down spins that way.
+      targetAz.current -= dx * 0.005;
+      targetEl.current = clampOrbitPitch(targetEl.current + dy * 0.004);
     };
     const onUp = () => {
       dragging = false;
     };
     const onClick = (e: PointerEvent) => {
-      if (approachRef.current > 0.05) return;
+      if (approachRef.current > 0.05 || dragged) return;
       const rect = host.getBoundingClientRect();
       const nx = ((e.clientX - rect.left) / rect.width) * 2 - 1;
       const ny = -((e.clientY - rect.top) / rect.height) * 2 + 1;
@@ -310,14 +324,18 @@ export function GlobeView({ ls, sunFixed, approach, className, onEnterSurface }:
     let raf = 0;
     const vallesYaw = yawToFaceCamera(portraitFaceUnitFixed());
     const jezeroYaw = yawToFaceCamera(jezeroBf);
-    const portraitDir = new THREE.Vector3(0, 0.2, 1).normalize();
     const jezeroLook = new THREE.Vector3();
+    const PORTRAIT_EL = 0.16;
 
     const tick = () => {
       const a = approachRef.current;
-      if (a > 0.08) targetYaw.current += (0 - targetYaw.current) * 0.06;
-      userYaw.current += (targetYaw.current - userYaw.current) * 0.12;
-      marsGroup.rotation.y = vallesYaw * (1 - a) + jezeroYaw * a + userYaw.current;
+      if (a > 0.08) {
+        targetAz.current += (0 - targetAz.current) * 0.06;
+        targetEl.current += (0 - targetEl.current) * 0.06;
+      }
+      userAz.current += (targetAz.current - userAz.current) * 0.14;
+      userEl.current += (targetEl.current - userEl.current) * 0.14;
+      marsGroup.rotation.y = vallesYaw * (1 - a) + jezeroYaw * a;
 
       const orbitDist = orbitCameraDistance(aspectRef.current, ORBIT_FOV_DEG);
       const dist = orbitDist * (1 - a) + 1.12 * a;
@@ -325,10 +343,12 @@ export function GlobeView({ ls, sunFixed, approach, className, onEnterSurface }:
       const side = 0.72 * (1 - a) + 0.08 * a;
       const jezeroCam = tmp.copy(jezeroV).multiplyScalar(toward).addScaledVector(tangent, side);
       jezeroCam.setLength(dist);
-      cam.copy(portraitDir).setLength(dist).lerp(jezeroCam, a);
+      const dir = orbitCameraDir(userAz.current, PORTRAIT_EL + userEl.current);
+      cam.set(dir.x, dir.y, dir.z).setLength(dist).lerp(jezeroCam, a);
       jezeroLook.copy(jezeroV).multiplyScalar(0.04 + 0.96 * a);
-      look.set(0, -0.04, 0).lerp(jezeroLook, a);
+      look.set(0, 0, 0).lerp(jezeroLook, a);
       camera.position.copy(cam);
+      camera.up.set(0, 1, 0);
       camera.lookAt(look);
       camera.fov = ORBIT_FOV_DEG + 16 * a;
       camera.updateProjectionMatrix();
@@ -383,7 +403,7 @@ export function GlobeView({ ls, sunFixed, approach, className, onEnterSurface }:
 
   return (
     <div className={`relative overflow-hidden bg-dusk ${className ?? ""}`}>
-      <div ref={hostRef} className="absolute inset-0 cursor-grab active:cursor-grabbing" />
+      <div ref={hostRef} className="absolute inset-0 touch-none cursor-grab active:cursor-grabbing" />
       <div ref={overlayRef} className="pointer-events-none absolute inset-0 font-sans" />
     </div>
   );
