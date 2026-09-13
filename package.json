@@ -3,7 +3,7 @@
   "private": true,
   "version": "1.0.0",
   "type": "module",
-  "description": "Night sky from Jezero crater, Mars, for a visitor's birthday",
+  "description": "birthday in mars — night sky from Jezero crater for a visitor's birthday",
   "scripts": {
     "dev": "vite",
     "build": "tsc --noEmit && vite build",

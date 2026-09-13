@@ -12,7 +12,7 @@ import {
   marsBodyFixedFromEqj,
   type Horizon,
 } from "./marsFrame";
-import { type Vec3, hypot3, raDecToEqj } from "./math";
+import { type Vec3, hypot3, normalize, raDecToEqj } from "./math";
 import { findJezeroMidnight } from "./midnight";
 import { marsMoonsEqjKm } from "./moons";
 import { jezeroSeason, marsSolarLongitude } from "./season";
@@ -53,6 +53,8 @@ export type SkyModel = {
   labels: SkyLabel[];
   bodies: SkyBody[];
   sun: SkyBody | null;
+  /** Unit vector toward the Sun in Mars body-fixed (IAU +X Airy-0, +Z north). */
+  sunFixed: Vec3;
 };
 
 const PLANETS: { body: Body; id: string; name: string; kind: SkyBody["kind"]; color: string }[] =
@@ -112,6 +114,21 @@ export function computeSky(date: CivilDate): SkyModel {
   const frame = marsBodyFixedFromEqj(time);
   const observer = jezeroBodyFixedKm();
   const ls = marsSolarLongitude(time.tt);
+  const sunEqj = marsCenteredEqjAu(Body.Sun, time);
+  const sunFixed = normalize({
+    x:
+      frame.eqjToFixed[0] * sunEqj.x +
+      frame.eqjToFixed[1] * sunEqj.y +
+      frame.eqjToFixed[2] * sunEqj.z,
+    y:
+      frame.eqjToFixed[3] * sunEqj.x +
+      frame.eqjToFixed[4] * sunEqj.y +
+      frame.eqjToFixed[5] * sunEqj.z,
+    z:
+      frame.eqjToFixed[6] * sunEqj.x +
+      frame.eqjToFixed[7] * sunEqj.y +
+      frame.eqjToFixed[8] * sunEqj.z,
+  });
   const stars: SkyStar[] = [];
 
   for (const star of STARS) {
@@ -209,6 +226,7 @@ export function computeSky(date: CivilDate): SkyModel {
     labels,
     bodies,
     sun,
+    sunFixed,
   };
 }
 
