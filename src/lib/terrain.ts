@@ -67,7 +67,7 @@ export function sampleJezeroHeight(x: number, z: number): number {
   const rim = Math.exp(-((r - RIM_RADIUS) ** 2) / (2 * 1.15 ** 2));
   // Western gap: Neretva Vallis / delta inlet — rim is broken, not a full ring.
   const west = Math.exp(-((az - Math.PI) ** 2) / 0.42);
-  h += rim * 1.62 * (1 - 0.78 * west);
+  h += rim * 2.15 * (1 - 0.78 * west);
 
   // Western delta fan inside the bowl (raised, sloped toward the floor).
   const dx = x + 5.4;
@@ -85,29 +85,33 @@ export function sampleJezeroHeight(x: number, z: number): number {
   // Far eastern highlands beyond the rim.
   h += 0.38 * smoothstep(13, 17, r) * (0.45 + 0.55 * Math.cos(az)) * (1 - smoothstep(20, 25, r));
 
-  h += fbm(x, z) * 0.075;
+  h += fbm(x, z) * 0.09;
+  // Yard-scale ripples so the floor underfoot is not a billiard table.
+  h += fbm(x * 2.6, z * 2.6) * 0.05 * Math.exp(-(r * r) / 40);
   return h;
 }
 
 function terrainColor(x: number, z: number, h: number, slope: number): THREE.Color {
   const r = Math.hypot(x, z);
-  const dust = new THREE.Color(0xc47a4a);
-  const ochre = new THREE.Color(0xb05a32);
-  const rock = new THREE.Color(0x7a3d28);
-  const shadow = new THREE.Color(0x3d2418);
-  const bright = new THREE.Color(0xd4a070);
+  const dust = new THREE.Color(0xe8a86c);
+  const ochre = new THREE.Color(0xd48448);
+  const rock = new THREE.Color(0xb05a36);
+  const shadow = new THREE.Color(0x8a4a30);
+  const bright = new THREE.Color(0xf2c090);
   const color = ochre.clone();
 
-  color.lerp(dust, smoothstep(-0.05, 0.15, h) * 0.55);
-  color.lerp(rock, Math.min(1, slope * 2.4));
+  color.lerp(dust, smoothstep(-0.05, 0.2, h) * 0.55);
+  color.lerp(rock, Math.min(1, slope * 2.1));
   if (r > RIM_RADIUS - 0.6 && r < RIM_RADIUS + 1.4) {
-    color.lerp(rock, 0.35);
+    color.lerp(rock, 0.28);
   }
   if (h < -0.02 && r < 7) {
-    color.lerp(dust, 0.4);
+    color.lerp(dust, 0.45);
   }
-  color.lerp(shadow, Math.min(0.45, slope * 1.1));
-  color.lerp(bright, Math.max(0, 0.12 - slope) * 0.35);
+  color.lerp(shadow, Math.min(0.28, slope * 0.85));
+  color.lerp(bright, Math.max(0, 0.14 - slope) * 0.45);
+  const speck = hash2(Math.floor(x * 9), Math.floor(z * 9));
+  color.offsetHSL(0, 0, (speck - 0.5) * 0.06);
   return color;
 }
 
@@ -119,6 +123,7 @@ export function buildJezeroTerrainGeometry(): THREE.BufferGeometry {
   const verts = (segs + 1) * (segs + 1);
   const positions = new Float32Array(verts * 3);
   const colors = new Float32Array(verts * 3);
+  const uvs = new Float32Array(verts * 2);
   const heights = new Float32Array(verts);
 
   let i = 0;
@@ -130,6 +135,8 @@ export function buildJezeroTerrainGeometry(): THREE.BufferGeometry {
       positions[i * 3] = x;
       positions[i * 3 + 1] = y;
       positions[i * 3 + 2] = z;
+      uvs[i * 2] = (ix / segs) * 10;
+      uvs[i * 2 + 1] = (iz / segs) * 10;
       heights[i] = y;
       i += 1;
     }
@@ -167,7 +174,52 @@ export function buildJezeroTerrainGeometry(): THREE.BufferGeometry {
   const geo = new THREE.BufferGeometry();
   geo.setAttribute("position", new THREE.BufferAttribute(positions, 3));
   geo.setAttribute("color", new THREE.BufferAttribute(colors, 3));
+  geo.setAttribute("uv", new THREE.BufferAttribute(uvs, 2));
   geo.setIndex(indices);
   geo.computeVertexNormals();
   return geo;
+}
+
+/** Nearby floor stones so the yard is not an empty disc. */
+export const FLOOR_BOULDERS: { x: number; z: number; r: number }[] = [
+  { x: 3.2, z: -1.8, r: 0.22 },
+  { x: -0.6, z: 2.4, r: 0.16 },
+  { x: 2.8, z: 1.9, r: 0.13 },
+  { x: -2.4, z: -0.8, r: 0.19 },
+  { x: 0.4, z: -3.1, r: 0.15 },
+  { x: 4.6, z: 0.6, r: 0.2 },
+  { x: -1.8, z: -2.6, r: 0.12 },
+  { x: 5.1, z: -2.2, r: 0.17 },
+];
+
+/**
+ * Tiled grit overlay (browser only). Variation only — hue comes from
+ * vertex colors keyed to Perseverance public-domain stills.
+ */
+export function buildGritTexture(): THREE.CanvasTexture {
+  const canvas = document.createElement("canvas");
+  canvas.width = 256;
+  canvas.height = 256;
+  const ctx = canvas.getContext("2d")!;
+  ctx.fillStyle = "#e8c4a0";
+  ctx.fillRect(0, 0, 256, 256);
+  for (let i = 0; i < 2200; i += 1) {
+    const x = Math.random() * 256;
+    const y = Math.random() * 256;
+    const s = 0.6 + Math.random() * 2.4;
+    const shade = 150 + Math.floor(Math.random() * 90);
+    ctx.fillStyle = `rgb(${shade},${Math.floor(shade * 0.62)},${Math.floor(shade * 0.4)})`;
+    ctx.fillRect(x, y, s, s);
+  }
+  for (let i = 0; i < 80; i += 1) {
+    ctx.fillStyle = `rgba(90,48,28,${0.12 + Math.random() * 0.2})`;
+    ctx.beginPath();
+    ctx.ellipse(Math.random() * 256, Math.random() * 256, 4 + Math.random() * 10, 2 + Math.random() * 5, Math.random() * 5, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  const tex = new THREE.CanvasTexture(canvas);
+  tex.wrapS = THREE.RepeatWrapping;
+  tex.wrapT = THREE.RepeatWrapping;
+  tex.colorSpace = THREE.SRGBColorSpace;
+  return tex;
 }

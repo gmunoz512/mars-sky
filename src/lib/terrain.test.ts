@@ -45,6 +45,14 @@ describe("buildJezeroTerrainGeometry", () => {
       minY = Math.min(minY, y);
     }
     expect(maxY).toBeGreaterThan(minY + 0.4);
+    let sumR = 0;
+    let sumG = 0;
+    for (let i = 0; i < col.count; i += 1) {
+      expect(col.getX(i)).toBeGreaterThan(0.28);
+      sumR += col.getX(i);
+      sumG += col.getY(i);
+    }
+    expect(sumR / col.count).toBeGreaterThan(sumG / col.count);
     geo.dispose();
   });
 });

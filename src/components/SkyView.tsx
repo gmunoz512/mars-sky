@@ -1,7 +1,12 @@
 import { useEffect, useRef } from "react";
 import * as THREE from "three";
 import type { SkyLabel, SkyModel, SkyStar } from "../lib/sky";
-import { buildJezeroTerrainGeometry, sampleJezeroHeight } from "../lib/terrain";
+import {
+  FLOOR_BOULDERS,
+  buildGritTexture,
+  buildJezeroTerrainGeometry,
+  sampleJezeroHeight,
+} from "../lib/terrain";
 
 type Mode = "locked" | "look";
 
@@ -22,7 +27,7 @@ const CAM_X = 1.55;
 const CAM_Y = 0.2;
 const CAM_Z = 0.42;
 const DEFAULT_YAW = 0.22;
-const DEFAULT_PITCH = 0.16;
+const DEFAULT_PITCH = 0.09;
 
 const MAG_BINS: { max: number; size: number }[] = [
   { max: 0.5, size: 8.4 },
@@ -137,29 +142,37 @@ export function SkyView({ sky, mode, className }: Props) {
     const skyDome = makeMartianSkyDome();
     scene.add(skyDome);
 
-    // Soft fill — midnight Sun is below the horizon; lift the ground so the
-    // crater is readable. Not a photometric night exposure.
-    scene.add(new THREE.AmbientLight(0x6e4030, 0.38));
-    scene.add(new THREE.HemisphereLight(0xe2b184, 0x2a160e, 0.92));
-    const key = new THREE.DirectionalLight(0xf2d2aa, 0.48);
-    key.position.set(7, 9, -4);
-    scene.add(key);
-    const bounce = new THREE.DirectionalLight(0xc47a4a, 0.28);
-    bounce.position.set(-6, 3.2, 5);
-    scene.add(bounce);
-
+    // Unlit fill — midnight Sun is below the horizon; keep the crater readable
+    // (not a photometric night exposure). Hue from Perseverance public stills.
+    const grit = buildGritTexture();
     const terrainGeo = buildJezeroTerrainGeometry();
-    const terrainMat = new THREE.MeshLambertMaterial({ vertexColors: true });
+    const terrainMat = new THREE.MeshBasicMaterial({
+      vertexColors: true,
+      map: grit,
+    });
     const terrain = new THREE.Mesh(terrainGeo, terrainMat);
     scene.add(terrain);
 
     const farFloor = new THREE.Mesh(
       new THREE.CircleGeometry(42, 72),
-      new THREE.MeshLambertMaterial({ color: 0x8a4a30 }),
+      new THREE.MeshBasicMaterial({ color: 0xc47a4a, map: grit }),
     );
     farFloor.rotation.x = -Math.PI / 2;
-    farFloor.position.y = -0.14;
+    farFloor.position.y = -0.18;
     scene.add(farFloor);
+
+    const boulderGeo = new THREE.IcosahedronGeometry(1, 1);
+    const boulderMat = new THREE.MeshBasicMaterial({
+      color: 0xb4683c,
+      map: grit,
+    });
+    for (const b of FLOOR_BOULDERS) {
+      const mesh = new THREE.Mesh(boulderGeo, boulderMat);
+      mesh.position.set(b.x, sampleJezeroHeight(b.x, b.z) + b.r * 0.45, b.z);
+      mesh.scale.set(b.r, b.r * 0.72, b.r * 1.1);
+      mesh.rotation.set(b.x * 0.4, b.z * 0.3, b.r);
+      scene.add(mesh);
+    }
 
     const haze = new THREE.Mesh(
       new THREE.RingGeometry(8, 20, 96),
@@ -382,6 +395,9 @@ export function SkyView({ sky, mode, className }: Props) {
       terrainMat.dispose();
       farFloor.geometry.dispose();
       (farFloor.material as THREE.Material).dispose();
+      boulderGeo.dispose();
+      boulderMat.dispose();
+      grit.dispose();
       haze.geometry.dispose();
       (haze.material as THREE.Material).dispose();
       twilight.geometry.dispose();
