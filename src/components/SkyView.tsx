@@ -33,7 +33,7 @@ const CAM_X = 0;
 const CAM_Y = HORIZON_EYE_Y;
 const CAM_Z = 0;
 const DEFAULT_YAW = 0.08;
-const DEFAULT_PITCH = 0.16;
+const DEFAULT_PITCH = 0.02;
 
 const MAG_BINS: { max: number; size: number }[] = [
   { max: 0.5, size: 8.4 },
@@ -90,11 +90,11 @@ export function SkyView({ sky, mode, night = false, className }: Props) {
 
     const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-    renderer.setClearColor(0xd4b090, 1);
+    renderer.setClearColor(0xd8b48c, 1);
     host.appendChild(renderer.domElement);
 
     const scene = new THREE.Scene();
-    const camera = new THREE.PerspectiveCamera(64, 1, 0.04, 90);
+    const camera = new THREE.PerspectiveCamera(56, 1, 0.04, 90);
     camera.up.set(0, 1, 0);
 
     // Azimuth 0 = north (Mars NCP). Elevation in radians above the horizon.
@@ -162,7 +162,7 @@ export function SkyView({ sky, mode, night = false, className }: Props) {
       nightDome.visible = isNight;
       dayDome.visible = !isNight;
       overlay.style.opacity = isNight ? "1" : "0";
-      renderer.setClearColor(isNight ? 0x07060a : 0xd4b090, 1);
+      renderer.setClearColor(isNight ? 0x07060a : 0xd8b48c, 1);
     };
     moodRef.current = applyMood;
     applyMood(nightRef.current);
@@ -455,7 +455,7 @@ export function SkyView({ sky, mode, night = false, className }: Props) {
 
   return (
     <div
-      className={`relative overflow-hidden ${night ? "bg-dusk" : "bg-[#d4b090]"} ${mode === "look" ? "cursor-grab active:cursor-grabbing" : ""} ${className ?? ""}`}
+      className={`relative overflow-hidden ${night ? "bg-dusk" : "bg-[#d8b48c]"} ${mode === "look" ? "cursor-grab active:cursor-grabbing" : ""} ${className ?? ""}`}
     >
       <div ref={hostRef} className="absolute inset-0" />
       <div ref={overlayRef} className="pointer-events-none absolute inset-0 font-sans" />
@@ -596,9 +596,9 @@ function makeDaySkyDome(): THREE.Mesh {
   for (let i = 0; i < pos.count; i++) {
     const y = pos.getY(i) / radius;
     const t = Math.min(1, Math.max(0, y));
-    const hor = [0.91, 0.72, 0.56];
-    const mid = [0.86, 0.66, 0.52];
-    const zen = [0.78, 0.58, 0.48];
+    const hor = [0.89, 0.70, 0.52];
+    const mid = [0.86, 0.73, 0.58];
+    const zen = [0.82, 0.74, 0.62];
     const a = t < 0.35 ? hor : mid;
     const b = t < 0.35 ? mid : zen;
     const s = t < 0.35 ? t / 0.35 : (t - 0.35) / 0.65;
@@ -661,7 +661,7 @@ function makeTextSprite(text: string): THREE.Sprite {
   canvas.height = 64;
   const ctx = canvas.getContext("2d")!;
   ctx.clearRect(0, 0, 128, 64);
-  ctx.fillStyle = "#e8c4a0";
+  ctx.fillStyle = "#4a2e1c";
   ctx.font = "500 22px Outfit, system-ui, sans-serif";
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";

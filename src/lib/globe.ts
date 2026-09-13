@@ -7,8 +7,15 @@ export function jezeroUnitFixed(): Vec3 {
   return latLonUnitFixed(JEZERO.latitudeDeg, JEZERO.longitudeEastDeg);
 }
 
-/** Melas / Coprates — the “classic Mars” face of Valles Marineris. */
+/** Melas / Coprates — the canyon scar on the classic Mars portrait. */
 export const VALLES_MARINERIS = { latitudeDeg: -13.9, longitudeEastDeg: -59.2 };
+
+/** Frame Valles Marineris plus the Tharsis volcanoes, as in a Viking-era globe. */
+export const PORTRAIT_FACE = { latitudeDeg: -8.0, longitudeEastDeg: -78.0 };
+
+export function portraitFaceUnitFixed(): Vec3 {
+  return latLonUnitFixed(PORTRAIT_FACE.latitudeDeg, PORTRAIT_FACE.longitudeEastDeg);
+}
 
 export function vallesMarinerisUnitFixed(): Vec3 {
   return latLonUnitFixed(VALLES_MARINERIS.latitudeDeg, VALLES_MARINERIS.longitudeEastDeg);
@@ -84,14 +91,14 @@ export function composeGlobeAlbedo(source: CanvasImageSource, lsDeg: number): HT
     const frost = Math.min(1, Math.max(0, cap)) ** 1.35 * 0.32;
     for (let x = 0; x < w; x += 1) {
       const i = (y * w + x) * 4;
-      // Warm / lift the MDIM toward the cream-ochre globe portrait.
-      let r = data[i]! * 1.14 + 10;
-      let g = data[i + 1]! * 1.04 + 4;
-      let b = data[i + 2]! * 0.86;
+      // JPEG is already warmed; keep canyon darks and only a light ochre nudge.
+      let r = data[i]! * 1.04 + 2;
+      let g = data[i + 1]! * 1.01;
+      let b = data[i + 2]! * 0.94;
       const mid = (r + g + b) / 3;
-      r = mid + (r - mid) * 1.12;
-      g = mid + (g - mid) * 1.12;
-      b = mid + (b - mid) * 1.12;
+      r = mid + (r - mid) * 1.18;
+      g = mid + (g - mid) * 1.16;
+      b = mid + (b - mid) * 1.14;
       r = r + (236 - r) * frost;
       g = g + (228 - g) * frost;
       b = b + (216 - b) * frost;

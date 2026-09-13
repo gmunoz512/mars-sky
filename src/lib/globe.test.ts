@@ -2,7 +2,10 @@ import { describe, expect, it } from "vitest";
 import {
   GLOBE_CREDIT,
   GLOBE_SOURCES,
+  PORTRAIT_FACE,
+  VALLES_MARINERIS,
   polarCapExtents,
+  portraitFaceUnitFixed,
   vallesMarinerisUnitFixed,
   yawToFaceCamera,
 } from "./globe";
@@ -21,6 +24,12 @@ describe("Valles Marineris portrait", () => {
     expect(v.z).toBeLessThan(0);
     expect(v.x ** 2 + v.y ** 2 + v.z ** 2).toBeCloseTo(1, 5);
     expect(Number.isFinite(yawToFaceCamera(v))).toBe(true);
+  });
+
+  it("frames Tharsis west of Valles so the classic scar stays on camera", () => {
+    expect(PORTRAIT_FACE.longitudeEastDeg).toBeLessThan(VALLES_MARINERIS.longitudeEastDeg);
+    expect(PORTRAIT_FACE.longitudeEastDeg).toBeLessThan(-50);
+    expect(Number.isFinite(yawToFaceCamera(portraitFaceUnitFixed()))).toBe(true);
   });
 });
 

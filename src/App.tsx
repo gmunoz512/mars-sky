@@ -28,6 +28,7 @@ export default function App() {
   const onSurface = scale === "surface";
   const showSky = onSurface || approach > 0.62;
   const night = skyMood === "night";
+  const dayUi = onSurface && !night;
 
   const onDate = useCallback(
     (next: CivilDate) => {
@@ -79,14 +80,31 @@ export default function App() {
 
       <header className="pointer-events-none absolute inset-x-0 top-0 z-10 flex items-start justify-between gap-4 p-5 sm:p-8">
         <div>
-          <h1 className="font-serif text-xl tracking-tight sm:text-2xl">birthday in mars</h1>
-          <p className="mt-1 text-[10px] font-medium uppercase tracking-[0.24em] text-mute">
+          <h1
+            className={`font-serif text-xl tracking-tight sm:text-2xl ${
+              dayUi ? "text-[#3a2418]" : ""
+            }`}
+          >
+            birthday in mars
+          </h1>
+          <p
+            className={`mt-1 text-[10px] font-medium uppercase tracking-[0.24em] ${
+              dayUi ? "text-[#3a2418]/70" : "text-mute"
+            }`}
+          >
             {JEZERO.name} · {JEZERO.rover}
           </p>
         </div>
         <div className="pointer-events-auto flex flex-col items-end gap-2 sm:flex-row">
-          {onSurface && <SkyMoodToggle value={skyMood} onChange={setSkyMood} />}
-          <ScaleToggle value={scale} onChange={setScaleExplicit} disabled={busy} />
+          {onSurface && (
+            <SkyMoodToggle value={skyMood} onChange={setSkyMood} tone={dayUi ? "light" : "dark"} />
+          )}
+          <ScaleToggle
+            value={scale}
+            onChange={setScaleExplicit}
+            disabled={busy}
+            tone={dayUi ? "light" : "dark"}
+          />
         </div>
       </header>
 

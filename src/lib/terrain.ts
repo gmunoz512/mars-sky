@@ -26,7 +26,7 @@ export const TERRAIN_SOURCES = [
  *  that its rim sits well below the photo horizon. */
 export const GROUND_RADIUS = 2.15;
 export const HORIZON_RADIUS = 12;
-export const HORIZON_HEIGHT = 5.55;
+export const HORIZON_HEIGHT = 7.4;
 /** V of the photo horizon on the cylinder (0 = bottom). */
 export const HORIZON_V = 0.76;
 /** World y of the texture horizon line (matches camera eye height). */
