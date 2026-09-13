@@ -159,6 +159,7 @@ export function SkyView({ sky, mode, className }: Props) {
         groundTex.anisotropy = renderer.capabilities.getMaxAnisotropy();
         groundTex.wrapS = THREE.RepeatWrapping;
         groundTex.wrapT = THREE.RepeatWrapping;
+        groundTex.repeat.set(2.4, 2.4);
         const horizonTex = fadeDaytimeSky(horizonRaw);
         horizonRaw.dispose();
         horizonTex.anisotropy = renderer.capabilities.getMaxAnisotropy();

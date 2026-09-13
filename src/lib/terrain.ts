@@ -47,8 +47,8 @@ export function buildPhotoGroundGeometry(): THREE.BufferGeometry {
     positions[(i + 1) * 3] = x;
     positions[(i + 1) * 3 + 1] = sampleGroundHeight(x, z);
     positions[(i + 1) * 3 + 2] = z;
-    uvs[(i + 1) * 2] = 0.5 + 0.5 * Math.cos(a);
-    uvs[(i + 1) * 2 + 1] = 0.5 + 0.5 * Math.sin(a);
+    uvs[(i + 1) * 2] = 0.5 + 0.5 * (x / GROUND_RADIUS);
+    uvs[(i + 1) * 2 + 1] = 0.5 + 0.5 * (z / GROUND_RADIUS);
   }
   const indices: number[] = [];
   for (let i = 1; i <= segs; i += 1) {
