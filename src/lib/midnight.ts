@@ -27,27 +27,37 @@ export function midnightResidualDeg(date: Date): number {
  * on the given Earth civil date. One Mars sol is 24h 39m 35s, so each
  * Earth date has one such midnight.
  */
+function refineCrossing(lo: number, hi: number): number {
+  for (let i = 0; i < 28; i++) {
+    const mid = (lo + hi) / 2;
+    const r = midnightResidualDeg(new Date(mid));
+    const rl = midnightResidualDeg(new Date(lo));
+    if ((rl > 0 && r > 0) || (rl < 0 && r < 0)) lo = mid;
+    else hi = mid;
+  }
+  return (lo + hi) / 2;
+}
+
 export function findJezeroMidnight(year: number, month: number, day: number): Date {
   const noon = Date.UTC(year, month - 1, day, 12, 0, 0);
   const start = noon - 18 * 3600 * 1000;
   const end = noon + 18 * 3600 * 1000;
-  const stepMs = 8 * 60 * 1000;
-  let bestT = noon;
-  let bestAbs = 1e9;
-  for (let t = start; t <= end; t += stepMs) {
-    const r = Math.abs(midnightResidualDeg(new Date(t)));
-    if (r < bestAbs) {
-      bestAbs = r;
-      bestT = t;
+  const stepMs = 10 * 60 * 1000;
+  const zeros: number[] = [];
+  let prevT = start;
+  let prevR = midnightResidualDeg(new Date(start));
+  for (let t = start + stepMs; t <= end; t += stepMs) {
+    const r = midnightResidualDeg(new Date(t));
+    // Residual is near 0 at midnight and ~±180° at noon. Ignore noon wraps.
+    if (Math.abs(prevR) < 90 && Math.abs(r) < 90 && Math.sign(prevR) !== Math.sign(r)) {
+      zeros.push(refineCrossing(prevT, t));
     }
+    prevT = t;
+    prevR = r;
   }
-  let lo = bestT - stepMs;
-  let hi = bestT + stepMs;
-  for (let i = 0; i < 28; i++) {
-    const mid = (lo + hi) / 2;
-    const r = midnightResidualDeg(new Date(mid));
-    if (r > 0) lo = mid;
-    else hi = mid;
+  if (zeros.length === 0) {
+    return new Date(noon);
   }
-  return new Date((lo + hi) / 2);
+  zeros.sort((a, b) => Math.abs(a - noon) - Math.abs(b - noon));
+  return new Date(zeros[0]!);
 }

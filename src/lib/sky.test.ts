@@ -41,6 +41,13 @@ describe("local true solar midnight", () => {
     const az = h.azimuthDeg > 180 ? h.azimuthDeg - 360 : h.azimuthDeg;
     expect(Math.abs(az)).toBeLessThan(8);
   });
+
+  it("picks the midnight closest to 12:00 UTC on the civil date", () => {
+    const utc = findJezeroMidnight(1990, 2, 18);
+    expect(Math.abs(midnightResidualDeg(utc))).toBeLessThan(0.05);
+    const noon = Date.UTC(1990, 1, 18, 12);
+    expect(Math.abs(utc.getTime() - noon)).toBeLessThan(14 * 3600 * 1000);
+  });
 });
 
 describe("birthday sky", () => {
