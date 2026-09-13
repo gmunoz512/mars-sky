@@ -383,7 +383,7 @@ function makeMartianSkyDome(): THREE.Mesh {
     const t = Math.min(1, Math.max(0, y));
     const hor = [0.78, 0.42, 0.22];
     const mid = [0.28, 0.12, 0.08];
-    const zen = [0.06, 0.035, 0.04];
+    const zen = [0.03, 0.018, 0.02];
     const u = t < 0.28 ? t / 0.28 : 1;
     const a = t < 0.28 ? hor : mid;
     const b = t < 0.28 ? mid : zen;
@@ -400,7 +400,7 @@ function makeMartianSkyDome(): THREE.Mesh {
       side: THREE.BackSide,
       depthWrite: false,
       transparent: true,
-      opacity: 0.88,
+      opacity: 0.52,
     }),
   );
 }
