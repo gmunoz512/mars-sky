@@ -171,7 +171,7 @@ export function SkyView({ sky, mode, className }: Props) {
       groundTex.repeat.set(1.8, 1.8);
 
       const horizonTex = fadePhoto(horizonRaw, { top: 0.2 });
-      const deltaTex = fadePhoto(deltaRaw, { top: 0.18, side: 0.06 });
+      const deltaTex = fadePhoto(deltaRaw, { top: 0.28, side: 0.04 });
       const climbTex = fadePhoto(climbRaw, { top: 0.42, side: 0.06 });
       horizonRaw.dispose();
       deltaRaw.dispose();
