@@ -26,8 +26,11 @@ export const TERRAIN_SOURCES = [
  *  that its rim sits well below the photo horizon. */
 export const GROUND_RADIUS = 2.15;
 export const HORIZON_RADIUS = 12;
-export const HORIZON_HEIGHT = 7.4;
-/** V of the photo horizon on the cylinder (0 = bottom). */
+/** Photo sky is mapped onto this rise so haze fills the rover-eye frame. */
+export const HORIZON_SKY_RISE = 4.5;
+export const HORIZON_GROUND_DROP = 4.6;
+export const HORIZON_HEIGHT = HORIZON_SKY_RISE + HORIZON_GROUND_DROP;
+/** V of the photo horizon on the 360 (0 = bottom). */
 export const HORIZON_V = 0.76;
 /** World y of the texture horizon line (matches camera eye height). */
 export const HORIZON_EYE_Y = 0.2;

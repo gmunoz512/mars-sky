@@ -113,7 +113,7 @@ export function GlobeView({ ls, sunFixed, approach, className, onEnterSurface }:
       metalness: 0.02,
       bumpScale: 0.07,
       emissive: new THREE.Color(0xffffff),
-      emissiveIntensity: 0.03,
+      emissiveIntensity: 0,
     });
     const mars = new THREE.Mesh(new THREE.SphereGeometry(1, 96, 64), marsMat);
     marsGroup.add(mars);
@@ -161,8 +161,8 @@ export function GlobeView({ ls, sunFixed, approach, className, onEnterSurface }:
       uniforms: {
         uColor: { value: new THREE.Color(0xf2c090) },
         uSun: { value: new THREE.Vector3(0.12, 0.95, 0.82) },
-        uPower: { value: 2.45 },
-        uOpacity: { value: 0.58 },
+        uPower: { value: 2.15 },
+        uOpacity: { value: 0.72 },
       },
       vertexShader: ATMOS_VERT,
       fragmentShader: ATMOS_FRAG,
@@ -171,7 +171,7 @@ export function GlobeView({ ls, sunFixed, approach, className, onEnterSurface }:
       side: THREE.BackSide,
       blending: THREE.AdditiveBlending,
     });
-    const atmos = new THREE.Mesh(new THREE.SphereGeometry(1.045, 64, 48), atmosMat);
+    const atmos = new THREE.Mesh(new THREE.SphereGeometry(1.058, 64, 48), atmosMat);
     marsGroup.add(atmos);
 
     const hazeMat = new THREE.ShaderMaterial({
@@ -216,14 +216,14 @@ export function GlobeView({ ls, sunFixed, approach, className, onEnterSurface }:
       "pointer-events-none absolute left-0 top-0 text-[10px] uppercase tracking-[0.22em] text-ink/70";
     overlay.appendChild(label);
 
-    const sun = new THREE.DirectionalLight(0xfff2dc, 2.35);
+    const sun = new THREE.DirectionalLight(0xfff2dc, 2.5);
     scene.add(sun);
-    const fill = new THREE.AmbientLight(0x140e0a, 0.035);
+    const fill = new THREE.AmbientLight(0x100c08, 0.02);
     scene.add(fill);
-    const rim = new THREE.HemisphereLight(0xc9a078, 0x060504, 0.12);
+    const rim = new THREE.HemisphereLight(0xc9a078, 0x050403, 0.07);
     scene.add(rim);
 
-    const portraitSun = new THREE.Vector3(0.14, 0.94, 0.78).normalize();
+    const portraitSun = new THREE.Vector3(0.05, 0.58, 0.81).normalize();
 
     const userYaw = { current: 0 };
     const targetYaw = { current: 0 };
@@ -308,18 +308,12 @@ export function GlobeView({ ls, sunFixed, approach, className, onEnterSurface }:
     host.addEventListener("click", onClick);
 
     let raf = 0;
-    const reduced =
-      typeof window.matchMedia === "function" &&
-      window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
     const tick = () => {
       const a = approachRef.current;
       if (a > 0.08) targetYaw.current += (0 - targetYaw.current) * 0.06;
       userYaw.current += (targetYaw.current - userYaw.current) * 0.12;
       marsGroup.rotation.y = vallesYaw * (1 - a) + jezeroYaw * a + userYaw.current;
-      if (a < 0.08 && !reduced && !dragging) {
-        targetYaw.current += 0.00012;
-      }
 
       const dist = 3.2 * (1 - a) + 1.08 * a;
       const toward = 0.28 + 0.72 * a;

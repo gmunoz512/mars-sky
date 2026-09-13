@@ -20,7 +20,7 @@ describe("TERRAIN_SOURCES", () => {
 describe("horizon wrap", () => {
   it("keeps the ground disc inside the photo cylinder so rims cannot mismatch", () => {
     expect(GROUND_RADIUS).toBeLessThan(HORIZON_RADIUS * 0.35);
-    expect(HORIZON_HEIGHT).toBeGreaterThan(4);
+    expect(HORIZON_HEIGHT).toBeGreaterThan(8);
   });
 });
 

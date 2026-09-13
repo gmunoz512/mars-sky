@@ -5,8 +5,9 @@ import horizonUrl from "../assets/mars/jezero-horizon.jpg";
 import type { SkyLabel, SkyModel, SkyStar } from "../lib/sky";
 import {
   HORIZON_EYE_Y,
-  HORIZON_HEIGHT,
+  HORIZON_GROUND_DROP,
   HORIZON_RADIUS,
+  HORIZON_SKY_RISE,
   HORIZON_V,
   buildPhotoGroundGeometry,
   sampleGroundHeight,
@@ -33,7 +34,7 @@ const CAM_X = 0;
 const CAM_Y = HORIZON_EYE_Y;
 const CAM_Z = 0;
 const DEFAULT_YAW = 0.08;
-const DEFAULT_PITCH = 0.02;
+const DEFAULT_PITCH = -0.04;
 
 const MAG_BINS: { max: number; size: number }[] = [
   { max: 0.5, size: 8.4 },
@@ -204,11 +205,12 @@ export function SkyView({ sky, mode, night = false, className }: Props) {
 
         const wrap = makeHorizonArc(nightRef.current ? nightHorizon : dayHorizon, {
           radius: HORIZON_RADIUS,
-          height: HORIZON_HEIGHT,
           span: Math.PI * 2,
           yaw: 0,
           segments: 128,
           horizonV: HORIZON_V,
+          skyRise: HORIZON_SKY_RISE,
+          groundDrop: HORIZON_GROUND_DROP,
         });
         scene.add(wrap.mesh);
 
@@ -549,26 +551,54 @@ function makeHorizonArc(
   map: THREE.Texture,
   opts: {
     radius: number;
-    height: number;
     span: number;
     yaw: number;
     segments: number;
     horizonV: number;
+    skyRise: number;
+    groundDrop: number;
     punchHoles?: boolean;
   },
 ): { mesh: THREE.Mesh; dispose: () => void } {
   // World azimuth 0 = north (−Z). Cylinder θ=0 is +Z; θ=π is −Z (north).
+  // Two bands so the photo sky occupies real elevation, not a thin orange stripe.
   const thetaStart = Math.PI - opts.yaw - opts.span / 2;
-  const geo = new THREE.CylinderGeometry(
-    opts.radius,
-    opts.radius,
-    opts.height,
-    opts.segments,
-    1,
-    true,
-    thetaStart,
-    opts.span,
-  );
+  const segs = opts.segments;
+  const ys = [
+    HORIZON_EYE_Y - opts.groundDrop,
+    HORIZON_EYE_Y,
+    HORIZON_EYE_Y + opts.skyRise,
+  ];
+  const vs = [0, opts.horizonV, 1];
+  const positions = new Float32Array(3 * 3 * (segs + 1));
+  const uvs = new Float32Array(2 * 3 * (segs + 1));
+  let p = 0;
+  let u = 0;
+  for (let iy = 0; iy < 3; iy += 1) {
+    for (let ix = 0; ix <= segs; ix += 1) {
+      const t = ix / segs;
+      const theta = thetaStart + t * opts.span;
+      positions[p++] = Math.sin(theta) * opts.radius;
+      positions[p++] = ys[iy]!;
+      positions[p++] = Math.cos(theta) * opts.radius;
+      uvs[u++] = t;
+      uvs[u++] = vs[iy]!;
+    }
+  }
+  const indices: number[] = [];
+  const stride = segs + 1;
+  for (let iy = 0; iy < 2; iy += 1) {
+    for (let ix = 0; ix < segs; ix += 1) {
+      const a = iy * stride + ix;
+      const b = a + stride;
+      indices.push(a, a + 1, b, b, a + 1, b + 1);
+    }
+  }
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute("position", new THREE.BufferAttribute(positions, 3));
+  geo.setAttribute("uv", new THREE.BufferAttribute(uvs, 2));
+  geo.setIndex(indices);
+  geo.computeVertexNormals();
   const mat = new THREE.MeshBasicMaterial({
     map,
     transparent: true,
@@ -578,7 +608,6 @@ function makeHorizonArc(
   });
   const mesh = new THREE.Mesh(geo, mat);
   if (opts.punchHoles === false) mesh.renderOrder = 1;
-  mesh.position.y = HORIZON_EYE_Y - opts.horizonV * opts.height + opts.height / 2;
   return {
     mesh,
     dispose() {
@@ -596,9 +625,9 @@ function makeDaySkyDome(): THREE.Mesh {
   for (let i = 0; i < pos.count; i++) {
     const y = pos.getY(i) / radius;
     const t = Math.min(1, Math.max(0, y));
-    const hor = [0.89, 0.70, 0.52];
-    const mid = [0.86, 0.73, 0.58];
-    const zen = [0.82, 0.74, 0.62];
+    const hor = [0.90, 0.73, 0.55];
+    const mid = [0.87, 0.76, 0.62];
+    const zen = [0.84, 0.77, 0.66];
     const a = t < 0.35 ? hor : mid;
     const b = t < 0.35 ? mid : zen;
     const s = t < 0.35 ? t / 0.35 : (t - 0.35) / 0.65;
