@@ -94,10 +94,13 @@ export function GlobeView({ ls, sunFixed, approach, className, onEnterSurface }:
     map.anisotropy = 8;
     mapRef.current = map;
 
-    const marsMat = new THREE.MeshStandardMaterial({
+    const marsMat = new THREE.MeshPhongMaterial({
       map,
-      roughness: 0.92,
-      metalness: 0.02,
+      shininess: 6,
+      specular: new THREE.Color(0x2a1c14),
+      emissive: new THREE.Color(0x3d2418),
+      emissiveMap: map,
+      emissiveIntensity: 0.42,
     });
     const mars = new THREE.Mesh(new THREE.SphereGeometry(1, 96, 64), marsMat);
     marsGroup.add(mars);
@@ -106,7 +109,7 @@ export function GlobeView({ ls, sunFixed, approach, className, onEnterSurface }:
       uniforms: {
         uColor: { value: new THREE.Color(0xc47a4a) },
         uPower: { value: 2.4 },
-        uOpacity: { value: 0.42 },
+        uOpacity: { value: 0.62 },
       },
       vertexShader: ATMOS_VERT,
       fragmentShader: ATMOS_FRAG,
@@ -159,11 +162,11 @@ export function GlobeView({ ls, sunFixed, approach, className, onEnterSurface }:
       "pointer-events-none absolute left-0 top-0 text-[10px] uppercase tracking-[0.22em] text-ink/70";
     overlay.appendChild(label);
 
-    const sun = new THREE.DirectionalLight(0xffe6c8, 1.55);
+    const sun = new THREE.DirectionalLight(0xffe6c8, 2.1);
     scene.add(sun);
-    const fill = new THREE.AmbientLight(0x2a221c, 0.28);
+    const fill = new THREE.AmbientLight(0x4a382c, 0.48);
     scene.add(fill);
-    const rim = new THREE.HemisphereLight(0x6a4030, 0x080706, 0.35);
+    const rim = new THREE.HemisphereLight(0x8a5340, 0x100c0a, 0.55);
     scene.add(rim);
 
     const userYaw = { current: 0 };
@@ -252,16 +255,17 @@ export function GlobeView({ ls, sunFixed, approach, className, onEnterSurface }:
         targetYaw.current += 0.0014;
       }
 
-      const dist = 2.72 * (1 - a) + 1.085 * a;
-      const side = 0.42 * (1 - a);
-      cam.copy(jezeroV).multiplyScalar(dist).addScaledVector(tangent, side);
-      look.copy(jezeroV).multiplyScalar(0.15 + 0.88 * a);
+      const dist = 2.85 * (1 - a) + 1.09 * a;
+      const toward = 0.38 + 0.62 * a;
+      const side = 0.92 * (1 - a) + 0.12 * a;
+      cam.copy(jezeroV).multiplyScalar(toward).addScaledVector(tangent, side).setLength(dist);
+      look.copy(jezeroV).multiplyScalar(a);
       camera.position.copy(cam);
       camera.lookAt(look);
-      camera.fov = 42 + 10 * a;
+      camera.fov = 40 + 12 * a;
       camera.updateProjectionMatrix();
 
-      atmosMat.uniforms.uOpacity!.value = 0.42 + 0.35 * a;
+      atmosMat.uniforms.uOpacity!.value = 0.62 + 0.28 * a;
       glowMat.opacity = 0.28 + 0.2 * Math.sin(performance.now() * 0.002);
       applySun();
       placeLabel();
