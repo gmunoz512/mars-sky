@@ -17,6 +17,8 @@ type Mode = "locked" | "look";
 type Props = {
   sky: SkyModel;
   mode: Mode;
+  /** Daytime peach haze is the default surface look; night is the birthday sky. */
+  night?: boolean;
   className?: string;
 };
 
@@ -31,7 +33,7 @@ const CAM_X = 0;
 const CAM_Y = HORIZON_EYE_Y;
 const CAM_Z = 0;
 const DEFAULT_YAW = 0.08;
-const DEFAULT_PITCH = 0.12;
+const DEFAULT_PITCH = 0.16;
 
 const MAG_BINS: { max: number; size: number }[] = [
   { max: 0.5, size: 8.4 },
@@ -71,12 +73,15 @@ function fillStarGeometry(stars: SkyStar[]): THREE.BufferGeometry {
   return geo;
 }
 
-export function SkyView({ sky, mode, className }: Props) {
+export function SkyView({ sky, mode, night = false, className }: Props) {
   const hostRef = useRef<HTMLDivElement>(null);
   const overlayRef = useRef<HTMLDivElement>(null);
   const applyRef = useRef<(model: SkyModel) => void>(() => undefined);
+  const moodRef = useRef<(isNight: boolean) => void>(() => undefined);
   const modeRef = useRef(mode);
+  const nightRef = useRef(night);
   modeRef.current = mode;
+  nightRef.current = night;
 
   useEffect(() => {
     const host = hostRef.current;
@@ -85,11 +90,11 @@ export function SkyView({ sky, mode, className }: Props) {
 
     const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-    renderer.setClearColor(0x07060a, 1);
+    renderer.setClearColor(0xd4b090, 1);
     host.appendChild(renderer.domElement);
 
     const scene = new THREE.Scene();
-    const camera = new THREE.PerspectiveCamera(62, 1, 0.04, 90);
+    const camera = new THREE.PerspectiveCamera(64, 1, 0.04, 90);
     camera.up.set(0, 1, 0);
 
     // Azimuth 0 = north (Mars NCP). Elevation in radians above the horizon.
@@ -143,8 +148,24 @@ export function SkyView({ sky, mode, className }: Props) {
     bodyGroup.renderOrder = 2;
     scene.add(bodyGroup);
 
-    const skyDome = makeMartianSkyDome();
-    scene.add(skyDome);
+    const dayDome = makeDaySkyDome();
+    const nightDome = makeNightSkyDome();
+    scene.add(dayDome);
+    scene.add(nightDome);
+
+    const applyMood = (isNight: boolean) => {
+      starLayers.forEach((layer) => {
+        layer.visible = isNight;
+      });
+      lines.visible = isNight;
+      bodyGroup.visible = isNight;
+      nightDome.visible = isNight;
+      dayDome.visible = !isNight;
+      overlay.style.opacity = isNight ? "1" : "0";
+      renderer.setClearColor(isNight ? 0x07060a : 0xd4b090, 1);
+    };
+    moodRef.current = applyMood;
+    applyMood(nightRef.current);
 
     const photo: { dispose: () => void } = { dispose() {} };
     const loader = new THREE.TextureLoader();
@@ -162,11 +183,15 @@ export function SkyView({ sky, mode, className }: Props) {
         groundRaw.dispose();
         groundTex.anisotropy = aniso;
 
-        const horizonTex = fadePhoto(horizonRaw, { top: 0.16 });
+        const dayHorizon = keepPhotoSky(horizonRaw);
+        const nightHorizon = fadePhoto(horizonRaw, { top: 0.22 });
         horizonRaw.dispose();
-        horizonTex.anisotropy = aniso;
-        horizonTex.wrapS = THREE.RepeatWrapping;
-        horizonTex.wrapT = THREE.ClampToEdgeWrapping;
+        dayHorizon.anisotropy = aniso;
+        nightHorizon.anisotropy = aniso;
+        dayHorizon.wrapS = THREE.RepeatWrapping;
+        nightHorizon.wrapS = THREE.RepeatWrapping;
+        dayHorizon.wrapT = THREE.ClampToEdgeWrapping;
+        nightHorizon.wrapT = THREE.ClampToEdgeWrapping;
 
         const groundGeo = buildPhotoGroundGeometry();
         const groundMat = new THREE.MeshBasicMaterial({
@@ -177,7 +202,7 @@ export function SkyView({ sky, mode, className }: Props) {
         const ground = new THREE.Mesh(groundGeo, groundMat);
         scene.add(ground);
 
-        const wrap = makeHorizonArc(horizonTex, {
+        const wrap = makeHorizonArc(nightRef.current ? nightHorizon : dayHorizon, {
           radius: HORIZON_RADIUS,
           height: HORIZON_HEIGHT,
           span: Math.PI * 2,
@@ -187,13 +212,27 @@ export function SkyView({ sky, mode, className }: Props) {
         });
         scene.add(wrap.mesh);
 
+        const wrapMat = wrap.mesh.material as THREE.MeshBasicMaterial;
+        const setHorizon = (isNight: boolean) => {
+          wrapMat.map = isNight ? nightHorizon : dayHorizon;
+          wrapMat.needsUpdate = true;
+        };
+
+        const prevMood = moodRef.current;
+        moodRef.current = (isNight: boolean) => {
+          prevMood(isNight);
+          setHorizon(isNight);
+        };
+        setHorizon(nightRef.current);
+
         photo.dispose = () => {
           scene.remove(ground, wrap.mesh);
           groundGeo.dispose();
           groundMat.dispose();
           wrap.dispose();
           groundTex.dispose();
-          horizonTex.dispose();
+          dayHorizon.dispose();
+          nightHorizon.dispose();
         };
       },
     );
@@ -385,8 +424,10 @@ export function SkyView({ sky, mode, className }: Props) {
       host.removeEventListener("pointermove", onMove);
       host.removeEventListener("pointerup", onUp);
       host.removeEventListener("pointercancel", onUp);
-      skyDome.geometry.dispose();
-      (skyDome.material as THREE.Material).dispose();
+      dayDome.geometry.dispose();
+      (dayDome.material as THREE.Material).dispose();
+      nightDome.geometry.dispose();
+      (nightDome.material as THREE.Material).dispose();
       compassSprites.forEach((sprite) => {
         const mat = sprite.material as THREE.SpriteMaterial;
         mat.map?.dispose();
@@ -408,9 +449,13 @@ export function SkyView({ sky, mode, className }: Props) {
     applyRef.current(sky);
   }, [sky]);
 
+  useEffect(() => {
+    moodRef.current(night);
+  }, [night]);
+
   return (
     <div
-      className={`relative overflow-hidden bg-dusk ${mode === "look" ? "cursor-grab active:cursor-grabbing" : ""} ${className ?? ""}`}
+      className={`relative overflow-hidden ${night ? "bg-dusk" : "bg-[#d4b090]"} ${mode === "look" ? "cursor-grab active:cursor-grabbing" : ""} ${className ?? ""}`}
     >
       <div ref={hostRef} className="absolute inset-0" />
       <div ref={overlayRef} className="pointer-events-none absolute inset-0 font-sans" />
@@ -421,6 +466,22 @@ export function SkyView({ sky, mode, className }: Props) {
 function smooth01(t: number): number {
   const u = Math.min(1, Math.max(0, t));
   return u * u * (3 - 2 * u);
+}
+
+/** Keep the Mastcam-Z butterscotch sky so daytime matches rover stills. */
+function keepPhotoSky(tex: THREE.Texture): THREE.CanvasTexture {
+  const img = tex.image as HTMLImageElement | ImageBitmap;
+  const w = img.width;
+  const h = img.height;
+  const canvas = document.createElement("canvas");
+  canvas.width = w;
+  canvas.height = h;
+  const ctx = canvas.getContext("2d")!;
+  ctx.drawImage(img as CanvasImageSource, 0, 0);
+  const out = new THREE.CanvasTexture(canvas);
+  out.colorSpace = THREE.SRGBColorSpace;
+  out.needsUpdate = true;
+  return out;
 }
 
 /** Fade daylight sky (and optional side edges) so photos blend into the midnight sky. */
@@ -527,7 +588,39 @@ function makeHorizonArc(
   };
 }
 
-function makeMartianSkyDome(): THREE.Mesh {
+function makeDaySkyDome(): THREE.Mesh {
+  const radius = 56;
+  const geo = new THREE.SphereGeometry(radius, 48, 32, 0, Math.PI * 2, 0, Math.PI / 2);
+  const cols = new Float32Array((geo.attributes.position?.count ?? 0) * 3);
+  const pos = geo.attributes.position!;
+  for (let i = 0; i < pos.count; i++) {
+    const y = pos.getY(i) / radius;
+    const t = Math.min(1, Math.max(0, y));
+    const hor = [0.91, 0.72, 0.56];
+    const mid = [0.86, 0.66, 0.52];
+    const zen = [0.78, 0.58, 0.48];
+    const a = t < 0.35 ? hor : mid;
+    const b = t < 0.35 ? mid : zen;
+    const s = t < 0.35 ? t / 0.35 : (t - 0.35) / 0.65;
+    cols[i * 3] = a[0]! + (b[0]! - a[0]!) * s;
+    cols[i * 3 + 1] = a[1]! + (b[1]! - a[1]!) * s;
+    cols[i * 3 + 2] = a[2]! + (b[2]! - a[2]!) * s;
+  }
+  geo.setAttribute("color", new THREE.BufferAttribute(cols, 3));
+  const mesh = new THREE.Mesh(
+    geo,
+    new THREE.MeshBasicMaterial({
+      vertexColors: true,
+      side: THREE.BackSide,
+      depthWrite: false,
+      depthTest: true,
+    }),
+  );
+  mesh.renderOrder = -1;
+  return mesh;
+}
+
+function makeNightSkyDome(): THREE.Mesh {
   const radius = 56;
   const geo = new THREE.SphereGeometry(radius, 48, 32, 0, Math.PI * 2, 0, Math.PI / 2);
   const cols = new Float32Array((geo.attributes.position?.count ?? 0) * 3);

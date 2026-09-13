@@ -3,7 +3,8 @@
  *
  * One seamless 360° wrap + matching ground disc, both from Perseverance
  * Mastcam-Z PIA24663 (Van Zyl Overlook). NASA/JPL-Caltech/ASU/MSSS.
- * Not a HiRISE DEM. Daylight photo under a computed midnight sky.
+ * Not a HiRISE DEM. Default surface mood is daylight (peach haze);
+ * the birthday night sky is a toggle.
  *
  * PIA24921 / PIA26378 are not layered as extra cylinders — those
  * mismatched horizon heights were the visible seam.
@@ -27,7 +28,7 @@ export const GROUND_RADIUS = 2.15;
 export const HORIZON_RADIUS = 12;
 export const HORIZON_HEIGHT = 5.55;
 /** V of the photo horizon on the cylinder (0 = bottom). */
-export const HORIZON_V = 0.86;
+export const HORIZON_V = 0.76;
 /** World y of the texture horizon line (matches camera eye height). */
 export const HORIZON_EYE_Y = 0.2;
 

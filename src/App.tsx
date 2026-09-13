@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { DatePicker } from "./components/DatePicker";
 import { GlobeView } from "./components/GlobeView";
 import { ScaleToggle } from "./components/ScaleToggle";
+import { SkyMoodToggle, type SkyMood } from "./components/SkyMoodToggle";
 import { SkyView } from "./components/SkyView";
 import { useScale } from "./components/useScale";
 import { JEZERO } from "./lib/jezero";
@@ -23,8 +24,10 @@ export default function App() {
   const [date, setDate] = useState<CivilDate>(DEFAULT_DATE);
   const sky = useMemo(() => computeSky(date), [date]);
   const { scale, approach, busy, goSurface, goOrbit, setScaleExplicit } = useScale();
+  const [skyMood, setSkyMood] = useState<SkyMood>("day");
   const onSurface = scale === "surface";
   const showSky = onSurface || approach > 0.62;
+  const night = skyMood === "night";
 
   const onDate = useCallback(
     (next: CivilDate) => {
@@ -70,7 +73,7 @@ export default function App() {
             onSurface ? "opacity-100" : "pointer-events-none opacity-0"
           }`}
         >
-          <SkyView sky={sky} mode="look" className="h-full w-full" />
+          <SkyView sky={sky} mode="look" night={night} className="h-full w-full" />
         </div>
       )}
 
@@ -81,18 +84,27 @@ export default function App() {
             {JEZERO.name} · {JEZERO.rover}
           </p>
         </div>
-        <div className="pointer-events-auto">
+        <div className="pointer-events-auto flex flex-col items-end gap-2 sm:flex-row">
+          {onSurface && <SkyMoodToggle value={skyMood} onChange={setSkyMood} />}
           <ScaleToggle value={scale} onChange={setScaleExplicit} disabled={busy} />
         </div>
       </header>
 
-      <div className="pointer-events-none absolute inset-x-0 bottom-0 z-10 bg-gradient-to-t from-dusk/65 via-dusk/18 to-transparent px-5 pb-5 pt-10 sm:px-8 sm:pb-7">
+      <div
+        className={`pointer-events-none absolute inset-x-0 bottom-0 z-10 bg-gradient-to-t to-transparent px-5 pb-5 pt-10 sm:px-8 sm:pb-7 ${
+          onSurface && !night
+            ? "from-[#2a1c14]/45 via-[#2a1c14]/10"
+            : "from-dusk/65 via-dusk/18"
+        }`}
+      >
         <div className="flex flex-col gap-6 sm:flex-row sm:items-end sm:justify-between">
           <div className="pointer-events-auto w-full max-w-md">
             <DatePicker value={date} onChange={onDate} compact />
             <p className="mt-3 text-[11px] leading-relaxed text-mute">
               {onSurface
-                ? "Local true solar midnight. Drag to look. Horizon is one Perseverance Mastcam-Z 360 (PIA24663), not a HiRISE mesh — daylight photo under a midnight sky."
+                ? night
+                  ? "Local true solar midnight. Drag to look. Night sky over a Perseverance Mastcam-Z 360 (PIA24663)."
+                  : "Daylight on Jezero. Drag to look. Horizon is one Perseverance Mastcam-Z 360 (PIA24663) — dusty peach sky, not a HiRISE mesh."
                 : "Enter a birthday to stand on Jezero and look out."}{" "}
               <span className="text-ink/55">{formatUtc(sky.utc)}</span>
             </p>
@@ -100,8 +112,8 @@ export default function App() {
           <p className="max-w-sm text-[10px] leading-relaxed text-mute/90 sm:text-right">
             {onSurface ? `${bodyLine(sky)}. ` : ""}
             Ls {sky.ls.toFixed(1)}° · {sky.season}. Globe is Viking MDIM 2.1
-            (NASA/JPL/USGS), not a generated texture. Terrain: NASA/JPL-Caltech/ASU/MSSS
-            PIA24663.
+            (NASA/JPL/USGS) facing Valles Marineris. Terrain: NASA/JPL-Caltech/ASU/MSSS
+            PIA24663. Use Night sky for the birthday star field.
             Phobos/Deimos are mean orbits, not Horizons. {JEZERO.latitudeDeg.toFixed(2)}°N{" "}
             {JEZERO.longitudeEastDeg.toFixed(2)}°E.
           </p>
