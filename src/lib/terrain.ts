@@ -1,22 +1,39 @@
 /**
  * Photographic Jezero surface for the zoomed-in view.
  *
- * Albedo comes from Perseverance Mastcam-Z public-domain mosaic PIA24663
- * (Van Zyl Overlook, April 2021). Credit: NASA/JPL-Caltech/ASU/MSSS.
- * https://photojournal.jpl.nasa.gov/catalog/PIA24663
+ * Albedo is Perseverance Mastcam-Z public-domain photography
+ * (NASA/JPL-Caltech/ASU/MSSS):
+ *   PIA24921 — Jezero delta panorama (facing landscape + ground crop)
+ *   PIA24663 — Van Zyl Overlook 360° wrap
+ *   PIA26378 — mid-climb view across Jezero
  *
- * This is a textured ground disc + a 360° horizon cylinder, not a HiRISE
- * DEM or a photogrammetric stitch. The photos are daylight; the sky
- * above is the computed local true solar midnight.
+ * Textured disc + photo cylinders, not a HiRISE DEM. Daylight photos
+ * under a computed local true solar midnight sky.
  */
 import * as THREE from "three";
 
-export const TERRAIN_SOURCES = {
-  pia: "PIA24663",
-  title: "Mastcam-Z 360-degree View of Van Zyl Overlook",
-  credit: "NASA/JPL-Caltech/ASU/MSSS",
-  url: "https://photojournal.jpl.nasa.gov/catalog/PIA24663",
-} as const;
+export const TERRAIN_CREDIT = "NASA/JPL-Caltech/ASU/MSSS";
+
+export const TERRAIN_SOURCES = [
+  {
+    pia: "PIA24921",
+    title: "Detailed Panorama of Mars' Jezero Crater Delta",
+    url: "https://photojournal.jpl.nasa.gov/catalog/PIA24921",
+    role: "delta horizon + ground",
+  },
+  {
+    pia: "PIA24663",
+    title: "Mastcam-Z 360-degree View of Van Zyl Overlook",
+    url: "https://photojournal.jpl.nasa.gov/catalog/PIA24663",
+    role: "360° wrap",
+  },
+  {
+    pia: "PIA26378",
+    title: "Perseverance's Mid-Climb View of Jezero Crater",
+    url: "https://photojournal.jpl.nasa.gov/catalog/PIA26378",
+    role: "mid-climb vista",
+  },
+] as const;
 
 export const GROUND_RADIUS = 5.4;
 export const HORIZON_RADIUS = 11;

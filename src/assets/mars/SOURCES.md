@@ -2,13 +2,15 @@
 
 Shipped JPEGs are compressed crops (≤ 2048 px) of NASA public-domain
 Perseverance / Mastcam-Z photography. Not a HiRISE DEM or a
-photogrammetric mesh.
+photogrammetric mesh. Credit: **NASA/JPL-Caltech/ASU/MSSS**.
 
-| File | Source | Credit | What we shipped |
-| --- | --- | --- | --- |
-| `jezero-horizon.jpg` | [PIA24663](https://photojournal.jpl.nasa.gov/catalog/PIA24663) — Mastcam-Z 360° view of Van Zyl Overlook, Jezero (April 2021) | NASA/JPL-Caltech/ASU/MSSS | Landscape band; rover hardware at the left/right of the mosaic cropped out; 2048 px wide |
-| `jezero-ground.jpg` | Same PIA24663 mosaic | NASA/JPL-Caltech/ASU/MSSS | Near-field soil and rocks, 1536² |
+More 360s: [Mastcam-Z 360 panorama collection](https://mastcamz.asu.edu/mastcam-zs-360-panorama-collection/).
 
-Regenerate from the Photojournal original with
-`python3 scripts/prepare-mars-textures.py` (needs Pillow). NASA imagery
-is generally not copyrighted; credit as above.
+| File | Source | What we shipped |
+| --- | --- | --- |
+| `jezero-delta.jpg` | [PIA24921](https://photojournal.jpl.nasa.gov/catalog/PIA24921) Jezero delta panorama (also [JPL](https://www.jpl.nasa.gov/images/pia24921-detailed-panorama-of-mars-jezero-crater-delta/)) | Facing landscape: delta butte + pavement; rover deck cropped out; 2048 px wide |
+| `jezero-ground.jpg` | Same PIA24921 mosaic | Near-field cracked pavement / soil, 1536² |
+| `jezero-horizon.jpg` | [PIA24663](https://photojournal.jpl.nasa.gov/catalog/PIA24663) Van Zyl Overlook 360° | Full look-around wrap; rover hardware cropped; 2048 px wide |
+| `jezero-climb.jpg` | [PIA26378](https://photojournal.jpl.nasa.gov/catalog/PIA26378) mid-climb Jezero view | Crater-floor vista when looking east-southeast; mosaic mask cropped; 2048 px wide |
+
+Regenerate with `python3 scripts/prepare-mars-textures.py` (needs Pillow). NASA imagery is generally not copyrighted; credit as above.

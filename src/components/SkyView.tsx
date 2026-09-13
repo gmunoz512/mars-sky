@@ -1,5 +1,7 @@
 import { useEffect, useRef } from "react";
 import * as THREE from "three";
+import climbUrl from "../assets/mars/jezero-climb.jpg";
+import deltaUrl from "../assets/mars/jezero-delta.jpg";
 import groundUrl from "../assets/mars/jezero-ground.jpg";
 import horizonUrl from "../assets/mars/jezero-horizon.jpg";
 import type { SkyLabel, SkyModel, SkyStar } from "../lib/sky";
@@ -29,8 +31,8 @@ const SKY_RADIUS = 48;
 const CAM_X = 0;
 const CAM_Y = HORIZON_EYE_Y;
 const CAM_Z = 0;
-const DEFAULT_YAW = 0.18;
-const DEFAULT_PITCH = 0.05;
+const DEFAULT_YAW = 0.08;
+const DEFAULT_PITCH = 0.07;
 
 const MAG_BINS: { max: number; size: number }[] = [
   { max: 0.5, size: 8.4 },
@@ -148,57 +150,86 @@ export function SkyView({ sky, mode, className }: Props) {
     const photo: { dispose: () => void } = { dispose() {} };
     const loader = new THREE.TextureLoader();
     let cancelled = false;
-    void Promise.all([loader.loadAsync(horizonUrl), loader.loadAsync(groundUrl)]).then(
-      ([horizonRaw, groundTex]) => {
-        if (cancelled) {
-          horizonRaw.dispose();
-          groundTex.dispose();
-          return;
-        }
-        groundTex.colorSpace = THREE.SRGBColorSpace;
-        groundTex.anisotropy = renderer.capabilities.getMaxAnisotropy();
-        groundTex.wrapS = THREE.RepeatWrapping;
-        groundTex.wrapT = THREE.RepeatWrapping;
-        groundTex.repeat.set(2.4, 2.4);
-        const horizonTex = fadeDaytimeSky(horizonRaw);
+    void Promise.all([
+      loader.loadAsync(horizonUrl),
+      loader.loadAsync(groundUrl),
+      loader.loadAsync(deltaUrl),
+      loader.loadAsync(climbUrl),
+    ]).then(([horizonRaw, groundTex, deltaRaw, climbRaw]) => {
+      if (cancelled) {
         horizonRaw.dispose();
-        horizonTex.anisotropy = renderer.capabilities.getMaxAnisotropy();
+        groundTex.dispose();
+        deltaRaw.dispose();
+        climbRaw.dispose();
+        return;
+      }
+      const aniso = renderer.capabilities.getMaxAnisotropy();
+      groundTex.colorSpace = THREE.SRGBColorSpace;
+      groundTex.anisotropy = aniso;
+      groundTex.wrapS = THREE.RepeatWrapping;
+      groundTex.wrapT = THREE.RepeatWrapping;
+      groundTex.repeat.set(1.8, 1.8);
 
-        const groundGeo = buildPhotoGroundGeometry();
-        const groundMat = new THREE.MeshBasicMaterial({ map: groundTex });
-        const ground = new THREE.Mesh(groundGeo, groundMat);
-        scene.add(ground);
+      const horizonTex = fadePhoto(horizonRaw, { top: 0.2 });
+      const deltaTex = fadePhoto(deltaRaw, { top: 0.26, side: 0.1 });
+      const climbTex = fadePhoto(climbRaw, { top: 0.3, side: 0.1 });
+      horizonRaw.dispose();
+      deltaRaw.dispose();
+      climbRaw.dispose();
+      horizonTex.anisotropy = aniso;
+      deltaTex.anisotropy = aniso;
+      climbTex.anisotropy = aniso;
 
-        const cylGeo = new THREE.CylinderGeometry(
-          HORIZON_RADIUS,
-          HORIZON_RADIUS,
-          HORIZON_HEIGHT,
-          96,
-          1,
-          true,
-        );
-        const cylMat = new THREE.MeshBasicMaterial({
-          map: horizonTex,
-          transparent: true,
-          side: THREE.BackSide,
-          depthWrite: true,
-        });
-        const cylinder = new THREE.Mesh(cylGeo, cylMat);
-        const horizonV = 0.78;
-        cylinder.position.y = HORIZON_EYE_Y - horizonV * HORIZON_HEIGHT + HORIZON_HEIGHT / 2;
-        scene.add(cylinder);
+      const groundGeo = buildPhotoGroundGeometry();
+      const groundMat = new THREE.MeshBasicMaterial({ map: groundTex });
+      const ground = new THREE.Mesh(groundGeo, groundMat);
+      scene.add(ground);
 
-        photo.dispose = () => {
-          scene.remove(ground, cylinder);
-          groundGeo.dispose();
-          groundMat.dispose();
-          cylGeo.dispose();
-          cylMat.dispose();
-          groundTex.dispose();
-          horizonTex.dispose();
-        };
-      },
-    );
+      const wrap = makeHorizonArc(horizonTex, {
+        radius: HORIZON_RADIUS,
+        height: HORIZON_HEIGHT,
+        span: Math.PI * 2,
+        yaw: 0,
+        segments: 96,
+        horizonV: 0.78,
+      });
+      scene.add(wrap.mesh);
+
+      // Default look: Jezero delta butte (PIA24921), slightly inside the 360 wrap.
+      const delta = makeHorizonArc(deltaTex, {
+        radius: HORIZON_RADIUS - 0.55,
+        height: 5.15,
+        span: 1.85,
+        yaw: 0,
+        segments: 32,
+        horizonV: 0.7,
+      });
+      scene.add(delta.mesh);
+
+      // Mid-climb vista across the crater (PIA26378) when looking east-southeast.
+      const climb = makeHorizonArc(climbTex, {
+        radius: HORIZON_RADIUS - 0.4,
+        height: 3.9,
+        span: 1.45,
+        yaw: 1.95,
+        segments: 24,
+        horizonV: 0.68,
+      });
+      scene.add(climb.mesh);
+
+      photo.dispose = () => {
+        scene.remove(ground, wrap.mesh, delta.mesh, climb.mesh);
+        groundGeo.dispose();
+        groundMat.dispose();
+        wrap.dispose();
+        delta.dispose();
+        climb.dispose();
+        groundTex.dispose();
+        horizonTex.dispose();
+        deltaTex.dispose();
+        climbTex.dispose();
+      };
+    });
 
     const compassSprites: THREE.Sprite[] = [];
     for (const c of [
@@ -420,8 +451,13 @@ export function SkyView({ sky, mode, className }: Props) {
   );
 }
 
-/** Fade the daylight sky in PIA24663 so the computed midnight sky shows through. */
-function fadeDaytimeSky(tex: THREE.Texture): THREE.CanvasTexture {
+function smooth01(t: number): number {
+  const u = Math.min(1, Math.max(0, t));
+  return u * u * (3 - 2 * u);
+}
+
+/** Fade daylight sky (and optional side edges) so photos blend into the midnight sky. */
+function fadePhoto(tex: THREE.Texture, opts?: { top?: number; side?: number }): THREE.CanvasTexture {
   const img = tex.image as HTMLImageElement | ImageBitmap;
   const w = img.width;
   const h = img.height;
@@ -431,14 +467,17 @@ function fadeDaytimeSky(tex: THREE.Texture): THREE.CanvasTexture {
   const ctx = canvas.getContext("2d")!;
   ctx.drawImage(img as CanvasImageSource, 0, 0);
   const data = ctx.getImageData(0, 0, w, h);
+  const top = opts?.top ?? 0.2;
+  const side = opts?.side ?? 0;
   for (let y = 0; y < h; y += 1) {
-    const t = y / Math.max(1, h - 1);
-    let a = 1;
-    if (t < 0.2) {
-      const u = t / 0.2;
-      a = u * u * (3 - 2 * u);
-    }
+    const ty = y / Math.max(1, h - 1);
+    const ay = ty < top ? smooth01(ty / top) : 1;
     for (let x = 0; x < w; x += 1) {
+      let a = ay;
+      if (side > 0) {
+        const tx = x / Math.max(1, w - 1);
+        a *= smooth01(tx / side) * smooth01((1 - tx) / side);
+      }
       data.data[(y * w + x) * 4 + 3] = Math.round(255 * a);
     }
   }
@@ -448,6 +487,45 @@ function fadeDaytimeSky(tex: THREE.Texture): THREE.CanvasTexture {
   out.wrapS = THREE.ClampToEdgeWrapping;
   out.needsUpdate = true;
   return out;
+}
+
+function makeHorizonArc(
+  map: THREE.Texture,
+  opts: {
+    radius: number;
+    height: number;
+    span: number;
+    yaw: number;
+    segments: number;
+    horizonV: number;
+  },
+): { mesh: THREE.Mesh; dispose: () => void } {
+  const thetaStart = Math.PI * 1.5 - opts.span / 2 + opts.yaw;
+  const geo = new THREE.CylinderGeometry(
+    opts.radius,
+    opts.radius,
+    opts.height,
+    opts.segments,
+    1,
+    true,
+    thetaStart,
+    opts.span,
+  );
+  const mat = new THREE.MeshBasicMaterial({
+    map,
+    transparent: true,
+    side: THREE.BackSide,
+    depthWrite: true,
+  });
+  const mesh = new THREE.Mesh(geo, mat);
+  mesh.position.y = HORIZON_EYE_Y - opts.horizonV * opts.height + opts.height / 2;
+  return {
+    mesh,
+    dispose() {
+      geo.dispose();
+      mat.dispose();
+    },
+  };
 }
 
 function makeMartianSkyDome(): THREE.Mesh {

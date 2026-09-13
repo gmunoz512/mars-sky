@@ -1,16 +1,20 @@
 import { describe, expect, it } from "vitest";
 import {
   GROUND_RADIUS,
+  TERRAIN_CREDIT,
   TERRAIN_SOURCES,
   buildPhotoGroundGeometry,
   sampleGroundHeight,
 } from "./terrain";
 
 describe("TERRAIN_SOURCES", () => {
-  it("cites the Perseverance Mastcam-Z panorama", () => {
-    expect(TERRAIN_SOURCES.pia).toBe("PIA24663");
-    expect(TERRAIN_SOURCES.credit).toContain("NASA");
-    expect(TERRAIN_SOURCES.url).toContain("PIA24663");
+  it("cites the preferred Mastcam-Z public-domain mosaics", () => {
+    const pias = TERRAIN_SOURCES.map((s) => s.pia);
+    expect(pias).toEqual(["PIA24921", "PIA24663", "PIA26378"]);
+    expect(TERRAIN_CREDIT).toContain("NASA");
+    for (const src of TERRAIN_SOURCES) {
+      expect(src.url).toContain(src.pia);
+    }
   });
 });
 
