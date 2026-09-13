@@ -1,7 +1,5 @@
 import { useEffect, useRef } from "react";
 import * as THREE from "three";
-import climbUrl from "../assets/mars/jezero-climb.jpg";
-import deltaUrl from "../assets/mars/jezero-delta.jpg";
 import groundUrl from "../assets/mars/jezero-ground.jpg";
 import horizonUrl from "../assets/mars/jezero-horizon.jpg";
 import type { SkyLabel, SkyModel, SkyStar } from "../lib/sky";
@@ -9,6 +7,7 @@ import {
   HORIZON_EYE_Y,
   HORIZON_HEIGHT,
   HORIZON_RADIUS,
+  HORIZON_V,
   buildPhotoGroundGeometry,
   sampleGroundHeight,
 } from "../lib/terrain";
@@ -150,88 +149,54 @@ export function SkyView({ sky, mode, className }: Props) {
     const photo: { dispose: () => void } = { dispose() {} };
     const loader = new THREE.TextureLoader();
     let cancelled = false;
-    void Promise.all([
-      loader.loadAsync(horizonUrl),
-      loader.loadAsync(groundUrl),
-      loader.loadAsync(deltaUrl),
-      loader.loadAsync(climbUrl),
-    ]).then(([horizonRaw, groundTex, deltaRaw, climbRaw]) => {
-      if (cancelled) {
+    void Promise.all([loader.loadAsync(horizonUrl), loader.loadAsync(groundUrl)]).then(
+      ([horizonRaw, groundRaw]) => {
+        if (cancelled) {
+          horizonRaw.dispose();
+          groundRaw.dispose();
+          return;
+        }
+        const aniso = renderer.capabilities.getMaxAnisotropy();
+
+        const groundTex = fadeGroundRim(groundRaw);
+        groundRaw.dispose();
+        groundTex.anisotropy = aniso;
+
+        const horizonTex = fadePhoto(horizonRaw, { top: 0.16 });
         horizonRaw.dispose();
-        groundTex.dispose();
-        deltaRaw.dispose();
-        climbRaw.dispose();
-        return;
-      }
-      const aniso = renderer.capabilities.getMaxAnisotropy();
-      groundTex.colorSpace = THREE.SRGBColorSpace;
-      groundTex.anisotropy = aniso;
-      groundTex.wrapS = THREE.RepeatWrapping;
-      groundTex.wrapT = THREE.RepeatWrapping;
-      groundTex.repeat.set(1.8, 1.8);
+        horizonTex.anisotropy = aniso;
+        horizonTex.wrapS = THREE.RepeatWrapping;
+        horizonTex.wrapT = THREE.ClampToEdgeWrapping;
 
-      const horizonTex = fadePhoto(horizonRaw, { top: 0.2 });
-      const deltaTex = fadePhoto(deltaRaw, { top: 0.28, side: 0.04 });
-      const climbTex = fadePhoto(climbRaw, { top: 0.42, side: 0.06 });
-      horizonRaw.dispose();
-      deltaRaw.dispose();
-      climbRaw.dispose();
-      horizonTex.anisotropy = aniso;
-      deltaTex.anisotropy = aniso;
-      climbTex.anisotropy = aniso;
+        const groundGeo = buildPhotoGroundGeometry();
+        const groundMat = new THREE.MeshBasicMaterial({
+          map: groundTex,
+          transparent: true,
+          depthWrite: true,
+        });
+        const ground = new THREE.Mesh(groundGeo, groundMat);
+        scene.add(ground);
 
-      const groundGeo = buildPhotoGroundGeometry();
-      const groundMat = new THREE.MeshBasicMaterial({ map: groundTex });
-      const ground = new THREE.Mesh(groundGeo, groundMat);
-      scene.add(ground);
+        const wrap = makeHorizonArc(horizonTex, {
+          radius: HORIZON_RADIUS,
+          height: HORIZON_HEIGHT,
+          span: Math.PI * 2,
+          yaw: 0,
+          segments: 128,
+          horizonV: HORIZON_V,
+        });
+        scene.add(wrap.mesh);
 
-      const wrap = makeHorizonArc(horizonTex, {
-        radius: HORIZON_RADIUS,
-        height: HORIZON_HEIGHT,
-        span: Math.PI * 2,
-        yaw: 0,
-        segments: 96,
-        horizonV: 0.78,
-      });
-      scene.add(wrap.mesh);
-
-      // Default look: Jezero delta butte (PIA24921), slightly inside the 360 wrap.
-      const delta = makeHorizonArc(deltaTex, {
-        radius: HORIZON_RADIUS - 0.55,
-        height: 6.2,
-        span: 1.55,
-        yaw: 0,
-        segments: 32,
-        horizonV: 0.48,
-        punchHoles: false,
-      });
-      scene.add(delta.mesh);
-
-      // Mid-climb vista across the crater (PIA26378) when looking east-southeast.
-      const climb = makeHorizonArc(climbTex, {
-        radius: HORIZON_RADIUS - 0.4,
-        height: 3.9,
-        span: 1.45,
-        yaw: 1.35,
-        segments: 24,
-        horizonV: 0.62,
-        punchHoles: false,
-      });
-      scene.add(climb.mesh);
-
-      photo.dispose = () => {
-        scene.remove(ground, wrap.mesh, delta.mesh, climb.mesh);
-        groundGeo.dispose();
-        groundMat.dispose();
-        wrap.dispose();
-        delta.dispose();
-        climb.dispose();
-        groundTex.dispose();
-        horizonTex.dispose();
-        deltaTex.dispose();
-        climbTex.dispose();
-      };
-    });
+        photo.dispose = () => {
+          scene.remove(ground, wrap.mesh);
+          groundGeo.dispose();
+          groundMat.dispose();
+          wrap.dispose();
+          groundTex.dispose();
+          horizonTex.dispose();
+        };
+      },
+    );
 
     const compassSprites: THREE.Sprite[] = [];
     for (const c of [
@@ -487,6 +452,34 @@ function fadePhoto(tex: THREE.Texture, opts?: { top?: number; side?: number }): 
   const out = new THREE.CanvasTexture(canvas);
   out.colorSpace = THREE.SRGBColorSpace;
   out.wrapS = THREE.ClampToEdgeWrapping;
+  out.needsUpdate = true;
+  return out;
+}
+
+/** Soften the disc rim so it cannot read as a circular seam under the wrap. */
+function fadeGroundRim(tex: THREE.Texture): THREE.CanvasTexture {
+  const img = tex.image as HTMLImageElement | ImageBitmap;
+  const w = img.width;
+  const h = img.height;
+  const canvas = document.createElement("canvas");
+  canvas.width = w;
+  canvas.height = h;
+  const ctx = canvas.getContext("2d")!;
+  ctx.drawImage(img as CanvasImageSource, 0, 0);
+  const data = ctx.getImageData(0, 0, w, h);
+  const cx = (w - 1) * 0.5;
+  const cy = (h - 1) * 0.5;
+  const maxR = Math.hypot(cx, cy);
+  for (let y = 0; y < h; y += 1) {
+    for (let x = 0; x < w; x += 1) {
+      const t = Math.hypot(x - cx, y - cy) / maxR;
+      const a = t < 0.55 ? 1 : t > 0.98 ? 0 : 1 - smooth01((t - 0.55) / 0.43);
+      data.data[(y * w + x) * 4 + 3] = Math.round(255 * a);
+    }
+  }
+  ctx.putImageData(data, 0, 0);
+  const out = new THREE.CanvasTexture(canvas);
+  out.colorSpace = THREE.SRGBColorSpace;
   out.needsUpdate = true;
   return out;
 }

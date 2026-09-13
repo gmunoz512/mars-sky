@@ -1,6 +1,8 @@
 import { useEffect, useRef } from "react";
 import * as THREE from "three";
-import { bodyFixedToThree, jezeroUnitFixed, paintMarsGlobe } from "../lib/globe";
+import albedoUrl from "../assets/mars/mars-albedo.jpg";
+import bumpUrl from "../assets/mars/mars-bump.jpg";
+import { bodyFixedToThree, composeGlobeAlbedo, jezeroUnitFixed } from "../lib/globe";
 import { JEZERO } from "../lib/jezero";
 import type { Vec3 } from "../lib/math";
 
@@ -42,9 +44,12 @@ export function GlobeView({ ls, sunFixed, approach, className, onEnterSurface }:
   const approachRef = useRef(approach);
   const onEnterRef = useRef(onEnterSurface);
   const mapRef = useRef<THREE.CanvasTexture | null>(null);
+  const albedoSrcRef = useRef<CanvasImageSource | null>(null);
+  const lsRef = useRef(ls);
   sunRef.current = sunFixed;
   approachRef.current = approach;
   onEnterRef.current = onEnterSurface;
+  lsRef.current = ls;
 
   useEffect(() => {
     const host = hostRef.current;
@@ -54,6 +59,9 @@ export function GlobeView({ ls, sunFixed, approach, className, onEnterSurface }:
     const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     renderer.setClearColor(0x07060a, 1);
+    renderer.outputColorSpace = THREE.SRGBColorSpace;
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 1.2;
     host.appendChild(renderer.domElement);
 
     const scene = new THREE.Scene();
@@ -88,28 +96,61 @@ export function GlobeView({ ls, sunFixed, approach, className, onEnterSurface }:
     const marsGroup = new THREE.Group();
     scene.add(marsGroup);
 
-    const canvas = paintMarsGlobe(ls);
-    const map = new THREE.CanvasTexture(canvas);
-    map.colorSpace = THREE.SRGBColorSpace;
-    map.anisotropy = 8;
-    mapRef.current = map;
-
-    const marsMat = new THREE.MeshPhongMaterial({
-      map,
-      shininess: 6,
-      specular: new THREE.Color(0x2a1c14),
-      emissive: new THREE.Color(0x3d2418),
-      emissiveMap: map,
-      emissiveIntensity: 0.14,
+    const marsMat = new THREE.MeshStandardMaterial({
+      color: 0x8a5a3c,
+      roughness: 0.86,
+      metalness: 0.04,
+      bumpScale: 0.045,
+      emissive: new THREE.Color(0xffffff),
+      emissiveIntensity: 0.34,
     });
     const mars = new THREE.Mesh(new THREE.SphereGeometry(1, 96, 64), marsMat);
     marsGroup.add(mars);
 
+    const applyColorMap = (tex: THREE.Texture) => {
+      tex.colorSpace = THREE.SRGBColorSpace;
+      tex.anisotropy = 8;
+      tex.wrapS = THREE.RepeatWrapping;
+      tex.wrapT = THREE.ClampToEdgeWrapping;
+      tex.needsUpdate = true;
+      const prev = marsMat.map;
+      marsMat.map = tex;
+      marsMat.emissiveMap = tex;
+      marsMat.needsUpdate = true;
+      if (prev && prev !== tex) prev.dispose();
+      mapRef.current = tex as THREE.CanvasTexture;
+    };
+
+    const loader = new THREE.TextureLoader();
+    void Promise.all([loader.loadAsync(albedoUrl), loader.loadAsync(bumpUrl)])
+      .then(([albedoTex, bumpTex]) => {
+        albedoSrcRef.current = albedoTex.image as CanvasImageSource;
+        try {
+          applyColorMap(
+            new THREE.CanvasTexture(composeGlobeAlbedo(albedoSrcRef.current, lsRef.current)),
+          );
+          albedoTex.dispose();
+        } catch {
+          applyColorMap(albedoTex);
+        }
+
+        bumpTex.colorSpace = THREE.NoColorSpace;
+        bumpTex.wrapS = THREE.RepeatWrapping;
+        bumpTex.wrapT = THREE.ClampToEdgeWrapping;
+        bumpTex.anisotropy = 8;
+        bumpTex.needsUpdate = true;
+        marsMat.bumpMap = bumpTex;
+        marsMat.needsUpdate = true;
+      })
+      .catch((err) => {
+        console.error("mars globe textures failed to load", err);
+      });
+
     const atmosMat = new THREE.ShaderMaterial({
       uniforms: {
-        uColor: { value: new THREE.Color(0xd4844c) },
-        uPower: { value: 2.15 },
-        uOpacity: { value: 0.72 },
+        uColor: { value: new THREE.Color(0xc48a62) },
+        uPower: { value: 2.7 },
+        uOpacity: { value: 0.48 },
       },
       vertexShader: ATMOS_VERT,
       fragmentShader: ATMOS_FRAG,
@@ -123,9 +164,9 @@ export function GlobeView({ ls, sunFixed, approach, className, onEnterSurface }:
 
     const hazeMat = new THREE.ShaderMaterial({
       uniforms: {
-        uColor: { value: new THREE.Color(0xf0b070) },
-        uPower: { value: 3.6 },
-        uOpacity: { value: 0.18 },
+        uColor: { value: new THREE.Color(0xe0a878) },
+        uPower: { value: 4.2 },
+        uOpacity: { value: 0.12 },
       },
       vertexShader: ATMOS_VERT,
       fragmentShader: ATMOS_FRAG,
@@ -162,11 +203,11 @@ export function GlobeView({ ls, sunFixed, approach, className, onEnterSurface }:
       "pointer-events-none absolute left-0 top-0 text-[10px] uppercase tracking-[0.22em] text-ink/70";
     overlay.appendChild(label);
 
-    const sun = new THREE.DirectionalLight(0xffe6c8, 2.4);
+    const sun = new THREE.DirectionalLight(0xffe4c8, 2.15);
     scene.add(sun);
-    const fill = new THREE.AmbientLight(0x2c221c, 0.16);
+    const fill = new THREE.AmbientLight(0x2a2018, 0.18);
     scene.add(fill);
-    const rim = new THREE.HemisphereLight(0x6a4030, 0x080706, 0.22);
+    const rim = new THREE.HemisphereLight(0x6a4838, 0x0a0807, 0.32);
     scene.add(rim);
 
     const userYaw = { current: 0 };
@@ -177,6 +218,7 @@ export function GlobeView({ ls, sunFixed, approach, className, onEnterSurface }:
     const tmp = new THREE.Vector3();
     const look = new THREE.Vector3();
     const cam = new THREE.Vector3();
+    const sunDir = new THREE.Vector3();
     const jezeroV = new THREE.Vector3(jezero.x, jezero.y, jezero.z);
     const north = new THREE.Vector3(0, 1, 0);
     const tangent = new THREE.Vector3().crossVectors(north, jezeroV).normalize();
@@ -258,14 +300,19 @@ export function GlobeView({ ls, sunFixed, approach, className, onEnterSurface }:
       const dist = 3.35 * (1 - a) + 1.08 * a;
       const toward = 0.28 + 0.72 * a;
       const side = 0.72 * (1 - a) + 0.08 * a;
-      cam.copy(jezeroV).multiplyScalar(toward).addScaledVector(tangent, side).setLength(dist);
+      cam.copy(jezeroV).multiplyScalar(toward).addScaledVector(tangent, side);
+      // Nudge toward the sun so midnight Jezero sits near a readable terminator.
+      const s = bodyFixedToThree(sunRef.current);
+      sunDir.set(s.x, s.y, s.z);
+      cam.addScaledVector(sunDir, 0.42 * (1 - a));
+      cam.setLength(dist);
       look.copy(jezeroV).multiplyScalar(0.04 + 0.96 * a);
       camera.position.copy(cam);
       camera.lookAt(look);
       camera.fov = 40 + 14 * a;
       camera.updateProjectionMatrix();
 
-      atmosMat.uniforms.uOpacity!.value = 0.62 + 0.28 * a;
+      atmosMat.uniforms.uOpacity!.value = 0.4 + 0.18 * a;
       glowMat.opacity = 0.28 + 0.2 * Math.sin(performance.now() * 0.002);
       applySun();
       placeLabel();
@@ -282,7 +329,8 @@ export function GlobeView({ ls, sunFixed, approach, className, onEnterSurface }:
       host.removeEventListener("pointerup", onUp);
       host.removeEventListener("pointercancel", onUp);
       host.removeEventListener("click", onClick);
-      map.dispose();
+      marsMat.map?.dispose();
+      if (marsMat.bumpMap) marsMat.bumpMap.dispose();
       mars.geometry.dispose();
       marsMat.dispose();
       atmos.geometry.dispose();
@@ -306,9 +354,9 @@ export function GlobeView({ ls, sunFixed, approach, className, onEnterSurface }:
 
   useEffect(() => {
     const map = mapRef.current;
-    if (!map) return;
-    const next = paintMarsGlobe(ls);
-    map.image = next;
+    const src = albedoSrcRef.current;
+    if (!map || !src) return;
+    map.image = composeGlobeAlbedo(src, ls);
     map.needsUpdate = true;
   }, [ls]);
 

@@ -1,14 +1,12 @@
 /**
  * Photographic Jezero surface for the zoomed-in view.
  *
- * Albedo is Perseverance Mastcam-Z public-domain photography
- * (NASA/JPL-Caltech/ASU/MSSS):
- *   PIA24921 — Jezero delta panorama (facing landscape + ground crop)
- *   PIA24663 — Van Zyl Overlook 360° wrap
- *   PIA26378 — mid-climb view across Jezero
+ * One seamless 360° wrap + matching ground disc, both from Perseverance
+ * Mastcam-Z PIA24663 (Van Zyl Overlook). NASA/JPL-Caltech/ASU/MSSS.
+ * Not a HiRISE DEM. Daylight photo under a computed midnight sky.
  *
- * Textured disc + photo cylinders, not a HiRISE DEM. Daylight photos
- * under a computed local true solar midnight sky.
+ * PIA24921 / PIA26378 are not layered as extra cylinders — those
+ * mismatched horizon heights were the visible seam.
  */
 import * as THREE from "three";
 
@@ -16,28 +14,20 @@ export const TERRAIN_CREDIT = "NASA/JPL-Caltech/ASU/MSSS";
 
 export const TERRAIN_SOURCES = [
   {
-    pia: "PIA24921",
-    title: "Detailed Panorama of Mars' Jezero Crater Delta",
-    url: "https://photojournal.jpl.nasa.gov/catalog/PIA24921",
-    role: "delta horizon + ground",
-  },
-  {
     pia: "PIA24663",
     title: "Mastcam-Z 360-degree View of Van Zyl Overlook",
     url: "https://photojournal.jpl.nasa.gov/catalog/PIA24663",
-    role: "360° wrap",
-  },
-  {
-    pia: "PIA26378",
-    title: "Perseverance's Mid-Climb View of Jezero Crater",
-    url: "https://photojournal.jpl.nasa.gov/catalog/PIA26378",
-    role: "mid-climb vista",
+    role: "360° wrap + ground",
   },
 ] as const;
 
-export const GROUND_RADIUS = 5.4;
-export const HORIZON_RADIUS = 11;
-export const HORIZON_HEIGHT = 3.55;
+/** Near-field only — large enough to fill the cylinder hole, small enough
+ *  that its rim sits well below the photo horizon. */
+export const GROUND_RADIUS = 2.15;
+export const HORIZON_RADIUS = 12;
+export const HORIZON_HEIGHT = 5.55;
+/** V of the photo horizon on the cylinder (0 = bottom). */
+export const HORIZON_V = 0.86;
 /** World y of the texture horizon line (matches camera eye height). */
 export const HORIZON_EYE_Y = 0.2;
 

@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
   GROUND_RADIUS,
+  HORIZON_HEIGHT,
+  HORIZON_RADIUS,
   TERRAIN_CREDIT,
   TERRAIN_SOURCES,
   buildPhotoGroundGeometry,
@@ -8,13 +10,17 @@ import {
 } from "./terrain";
 
 describe("TERRAIN_SOURCES", () => {
-  it("cites the preferred Mastcam-Z public-domain mosaics", () => {
-    const pias = TERRAIN_SOURCES.map((s) => s.pia);
-    expect(pias).toEqual(["PIA24921", "PIA24663", "PIA26378"]);
+  it("cites the single seamless Van Zyl 360, not stacked mosaics", () => {
+    expect(TERRAIN_SOURCES.map((s) => s.pia)).toEqual(["PIA24663"]);
     expect(TERRAIN_CREDIT).toContain("NASA");
-    for (const src of TERRAIN_SOURCES) {
-      expect(src.url).toContain(src.pia);
-    }
+    expect(TERRAIN_SOURCES[0]!.url).toContain("PIA24663");
+  });
+});
+
+describe("horizon wrap", () => {
+  it("keeps the ground disc inside the photo cylinder so rims cannot mismatch", () => {
+    expect(GROUND_RADIUS).toBeLessThan(HORIZON_RADIUS * 0.35);
+    expect(HORIZON_HEIGHT).toBeGreaterThan(4);
   });
 });
 
