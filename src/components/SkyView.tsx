@@ -171,8 +171,8 @@ export function SkyView({ sky, mode, className }: Props) {
       groundTex.repeat.set(1.8, 1.8);
 
       const horizonTex = fadePhoto(horizonRaw, { top: 0.2 });
-      const deltaTex = fadePhoto(deltaRaw, { top: 0.26, side: 0.1 });
-      const climbTex = fadePhoto(climbRaw, { top: 0.3, side: 0.1 });
+      const deltaTex = fadePhoto(deltaRaw, { top: 0.18, side: 0.06 });
+      const climbTex = fadePhoto(climbRaw, { top: 0.42, side: 0.06 });
       horizonRaw.dispose();
       deltaRaw.dispose();
       climbRaw.dispose();
@@ -198,11 +198,12 @@ export function SkyView({ sky, mode, className }: Props) {
       // Default look: Jezero delta butte (PIA24921), slightly inside the 360 wrap.
       const delta = makeHorizonArc(deltaTex, {
         radius: HORIZON_RADIUS - 0.55,
-        height: 5.15,
-        span: 1.85,
+        height: 6.2,
+        span: 1.55,
         yaw: 0,
         segments: 32,
-        horizonV: 0.7,
+        horizonV: 0.48,
+        punchHoles: false,
       });
       scene.add(delta.mesh);
 
@@ -213,7 +214,8 @@ export function SkyView({ sky, mode, className }: Props) {
         span: 1.45,
         yaw: 1.95,
         segments: 24,
-        horizonV: 0.68,
+        horizonV: 0.62,
+        punchHoles: false,
       });
       scene.add(climb.mesh);
 
@@ -498,6 +500,7 @@ function makeHorizonArc(
     yaw: number;
     segments: number;
     horizonV: number;
+    punchHoles?: boolean;
   },
 ): { mesh: THREE.Mesh; dispose: () => void } {
   const thetaStart = Math.PI * 1.5 - opts.span / 2 + opts.yaw;
@@ -515,9 +518,11 @@ function makeHorizonArc(
     map,
     transparent: true,
     side: THREE.BackSide,
-    depthWrite: true,
+    depthWrite: opts.punchHoles !== false,
+    alphaTest: 0.04,
   });
   const mesh = new THREE.Mesh(geo, mat);
+  if (opts.punchHoles === false) mesh.renderOrder = 1;
   mesh.position.y = HORIZON_EYE_Y - opts.horizonV * opts.height + opts.height / 2;
   return {
     mesh,

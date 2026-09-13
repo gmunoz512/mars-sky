@@ -55,10 +55,10 @@ def main() -> None:
     d = Image.open(delta)
     w, h = d.size
     save_jpeg(
-        d.crop((int(0.42 * w), int(0.02 * h), int(0.995 * w), int(0.58 * h))),
+        d.crop((int(0.418 * w), int(0.018 * h), int(0.78 * w), int(0.535 * h))),
         OUT / "jezero-delta.jpg",
         2048,
-        84,
+        85,
     )
     gs = int(0.22 * h)
     d.crop((int(0.62 * w), int(0.28 * h), int(0.62 * w) + gs, int(0.28 * h) + gs)).resize(
