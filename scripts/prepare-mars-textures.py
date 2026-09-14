@@ -141,14 +141,15 @@ def prepare_surface(van: Image.Image) -> None:
     # in the near corners cannot stripe the join.
     band = blend_wrap_seam(band, blend=12, top_frac=0.62)
     # 2048×96 left only a handful of pixels on the distant ridges and
-    # mipmapped to mush. Keep native crop height (the hill band is ~300
-    # Mastcam-Z rows) and a wide wrap so phone DPR is not upscaling mush.
-    out_w = 8192
-    out_h = band.size[1]
+    # mipmapped to mush. Keep nearly native crop height (the hill band
+    # is ~300 Mastcam-Z rows) at 4096 px wide — both axes stay within
+    # common WebGL MAX_TEXTURE_SIZE (4096) so phones do not drop the wrap.
+    out_w = 4096
+    out_h = min(band.size[1], 1024)
     sharp = band.resize((out_w, out_h), Image.Resampling.LANCZOS)
     sharp = sharp.filter(ImageFilter.UnsharpMask(radius=1.2, percent=140, threshold=2))
     sharp.convert("RGB").save(
-        OUT / "jezero-horizon.jpg", "JPEG", quality=85, optimize=True, progressive=True
+        OUT / "jezero-horizon.jpg", "JPEG", quality=88, optimize=True, progressive=True
     )
 
     gs = int(0.11 * h)

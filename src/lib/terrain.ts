@@ -3,8 +3,8 @@
  *
  * One seamless 360° wrap + matching ground disc, both from Perseverance
  * Mastcam-Z PIA24663 (Van Zyl Overlook). NASA/JPL-Caltech/ASU/MSSS.
- * Horizon strip is 8192 px wide at native crop height so distant hills
- * keep Mastcam-Z pixels instead of a 96-px-tall smear.
+ * Horizon strip is 4096×1024 so distant hills keep Mastcam-Z pixels
+ * without exceeding a 4096 WebGL texture cap (the old 96-px strip smeared).
  * Not a HiRISE DEM. Daylight photo under a computed midnight sky.
  *
  * PIA24921 / PIA26378 are not layered as extra cylinders — those

@@ -163,7 +163,7 @@ export function SkyView({ sky, mode, className }: Props) {
         groundRaw.dispose();
         groundTex.anisotropy = aniso;
 
-        const horizonTex = fadePhoto(horizonRaw, { top: 0.08 });
+        const horizonTex = fadePhoto(horizonRaw, { top: 0.06 });
         horizonRaw.dispose();
         sharpenHorizonMap(horizonTex);
         horizonTex.wrapS = THREE.RepeatWrapping;
@@ -444,7 +444,10 @@ function fadePhoto(tex: THREE.Texture, opts?: { top?: number; side?: number }): 
   const data = ctx.getImageData(0, 0, w, h);
   const top = opts?.top ?? 0.2;
   const side = opts?.side ?? 0;
-  for (let y = 0; y < h; y += 1) {
+  // Only walk the fade band — the ridge/terrain rows stay alpha 255 so
+  // distant hills are not softened by a full-image getImageData pass.
+  const yFade = side > 0 ? h : Math.min(h, Math.ceil(top * h) + 1);
+  for (let y = 0; y < yFade; y += 1) {
     const ty = y / Math.max(1, h - 1);
     const ay = ty < top ? smooth01(ty / top) : 1;
     for (let x = 0; x < w; x += 1) {
