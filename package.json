@@ -1,9 +1,27 @@
 {
-  "name": "jezero",
+  "name": "birthday-in-mars",
   "private": true,
   "version": "1.0.0",
   "type": "module",
-  "description": "birthday in mars — night sky from Jezero crater for a visitor's birthday",
+  "description": "birthday in mars — the night sky from Jezero crater, computed for a birthday",
+  "homepage": "https://gmunoz512.github.io/mars-sky/",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/gmunoz512/mars-sky.git"
+  },
+  "bugs": {
+    "url": "https://github.com/gmunoz512/mars-sky/issues"
+  },
+  "author": "German Muñoz",
+  "license": "MIT",
+  "keywords": [
+    "mars",
+    "jezero",
+    "astronomy",
+    "threejs",
+    "nasa",
+    "perseverance"
+  ],
   "scripts": {
     "dev": "vite",
     "build": "tsc --noEmit && vite build",

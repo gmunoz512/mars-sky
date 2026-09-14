@@ -1,12 +1,27 @@
 # birthday in mars
 
-A static page that computes the night sky above **Jezero crater, Mars** for a visitor’s full birthday (year, month, day).
+The night sky from Jezero crater, computed for a birthday.
 
-Site: Perseverance / Jezero, 18.4446°N, 77.4509°E (planetocentric). The sky is shown at **local true solar midnight** — the instant the Sun is at lower culmination as seen from that crater, due north and far below the horizon. The UTC moment used is printed in the UI.
+[![Live](https://img.shields.io/badge/live-gmunoz512.github.io%2Fmars--sky-c47a4a?style=flat)](https://gmunoz512.github.io/mars-sky/)
+[![MIT](https://img.shields.io/badge/license-MIT-8c8578?style=flat)](LICENSE)
 
-Live URL after GitHub Pages is enabled:
+**[Open the live site →](https://gmunoz512.github.io/mars-sky/)**
 
-`https://gmunoz512.github.io/mars-sky/`
+<p align="center">
+  <img src="docs/orbit.jpg" width="280" alt="Orbit: Viking MDIM 2.1 Mars globe" />
+  <img src="docs/surface.jpg" width="280" alt="Surface: Jezero midnight sky over Mastcam-Z terrain" />
+</p>
+
+Enter a date. Orbit a real NASA mosaic of Mars. Zoom in and stand at Perseverance’s site — Hipparcos stars and IAU constellations over a Mastcam-Z 360, at local true solar midnight.
+
+## Features
+
+- **Orbit globe** — Viking MDIM 2.1 (NASA/JPL/USGS), full sphere in black space. Drag or swipe to rotate; Valles Marineris faces you at rest.
+- **Birthday → Jezero** — year, month, and day zoom you onto the crater floor. The sky is recomputed for that midnight.
+- **Look around** — Hipparcos stars (mag ≤ 6), IAU stick figures, planets when they are up, Phobos and Deimos.
+- **Honest NASA imagery** — globe and terrain are public-domain photographs, not a generated texture or a HiRISE mesh.
+
+Default date is 18 February 2021 (Perseverance landing). `prefers-reduced-motion` skips the zoom tween.
 
 ## Run locally
 
@@ -15,73 +30,42 @@ npm install
 npm run dev
 ```
 
-Open the printed localhost URL (base path `/` in development).
+Vite serves at `/` in development. Then:
 
 ```bash
+npm test
 npm run build
 npm run preview
 ```
 
-Production build writes to `dist/`. In GitHub Actions the Vite base is `/mars-sky/` for project Pages.
-
-```bash
-npm test
-```
-
 ## GitHub Pages
 
-The workflow [`.github/workflows/deploy.yml`](.github/workflows/deploy.yml) builds on every push to `main` and deploys the `dist/` artifact with GitHub Pages.
+The site is live at **https://gmunoz512.github.io/mars-sky/**.
 
-One-time repo settings:
+[`.github/workflows/deploy.yml`](.github/workflows/deploy.yml) builds on every push to `main` and deploys `dist/` with the project base `/mars-sky/`. Pages source is **GitHub Actions**.
 
-1. **Settings → Pages → Source**: GitHub Actions (not “Deploy from a branch”).
-2. Push to `main` (or run the workflow manually).
-3. The site is served at `https://<user>.github.io/mars-sky/`.
+## Science, briefly
 
-For a user/org root site instead, set `VITE_BASE=/` in the workflow and host at `https://<user>.github.io/`.
+This is a visualization, not a flight-dynamics product.
 
-## What it shows
-
-A single full-viewport canvas (the page does not scroll). Overlay chrome only: title, birthday fields, zoom, footnotes.
-
-1. **Orbit** (default) — a complete Viking MDIM 2.1 Mars globe centered in black space (NASA/JPL/USGS), Valles Marineris facing the camera, soft southern terminator, thin dusty limb, Jezero pin. The camera sits far enough back that a phone shows the whole planet with black space around it. The WebGL canvas is sized to the CSS box (not the device-pixel buffer) so a 2–3× phone cannot shove the globe into a corner. Drag or swipe to orbit up, down, left, and right. Approach lighting eases toward midnight at Jezero.
-2. **Surface** — standing in Jezero: one seamless Perseverance Mastcam-Z 360 ([PIA24663](https://photojournal.jpl.nasa.gov/catalog/PIA24663) Van Zyl Overlook) on the horizon and ground, computed night sky above. Hipparcos stars, IAU figures, Earth/planets when up, Phobos and Deimos. Drag to look around. NASA/JPL-Caltech/ASU/MSSS. Not a HiRISE DEM. Daylight photo; midnight sky.
-
-**Interaction:** **Zoom in**, the crater pin, or scroll/pinch in. Completing or changing a birthday (year + month + day) also zooms in automatically; further date edits update the sky in place. **Zoom out** or scroll/pinch out returns to the globe. `prefers-reduced-motion` skips the tween.
-
-- Bright stars (Hipparcos-based, mag ≤ 6) and IAU constellation stick figures / Latin names
-- Sun, Earth, the Moon, and the major planets when they are above the Jezero horizon
-- Phobos and Deimos at approximate topocentric positions
-- A second surface view you can drag, at the same midnight
-
-The figures are the **same 88 IAU constellations** as on Earth, rotated into the Jezero horizon. This page does not invent a Mars-only mythology.
-
-Default date is 18 February 2021 (Perseverance landing). Changing year, month, or day recomputes the surface sky and the globe’s sunlight.
-
-## Science
-
-| Piece | Source | Notes |
+| Piece | Source | Honesty |
 | --- | --- | --- |
-| Stars | ESA Hipparcos / Yale Bright Star, packaged by [d3-celestial](https://github.com/ofrohn/d3-celestial) (BSD-2-Clause) | J2000 RA/Dec, mag ≤ 6. Proper motion omitted (arcminutes over a lifetime). |
-| Constellation lines | d3-celestial IAU stick figures | Same official 88 constellations. Serpens is drawn in two parts. |
-| Planets, Sun, Earth, Moon | [astronomy-engine](https://github.com/cosinekitty/astronomy) (VSOP87 / NOVAS) | Mars-centered vectors with a one-step light-time correction. Valid roughly 1600–2400; best near 1800–2100. |
-| Mars orientation | IAU WGCCRE 2015 via astronomy-engine `RotationAxis` (α₀, δ₀, W) | ICRF → body-fixed → Jezero horizon (east-north-up). |
-| Local midnight | Sun hour angle 180° at Jezero | Nearest midnight to 12:00 UTC on the selected civil date. A Mars sol is 24h 39m 35s. |
-| Season (Ls) | Allison & McEwen 2000 / [NASA Mars24](https://www.giss.nasa.gov/tools/mars24/help/algorithm.html) | Label; light seasonal frost overlay on the Viking mosaic. |
-| Orbit globe | [USGS Viking MDIM 2.1 colorized mosaic](https://astrogeology.usgs.gov/search/map/mars_viking_colorized_global_mosaic_232m) + derived bump. NASA/JPL/USGS. | Equirectangular albedo in `src/assets/mars/`. Default camera frames a complete sphere (shorter viewport axis); portrait faces Valles Marineris. Fly-in uses midnight sunlight at Jezero. |
-| Surface terrain | Perseverance Mastcam-Z [PIA24663](https://photojournal.jpl.nasa.gov/catalog/PIA24663) Van Zyl 360. NASA/JPL-Caltech/ASU/MSSS. Collection: [mastcamz.asu.edu](https://mastcamz.asu.edu/mastcam-zs-360-panorama-collection/) | One photo cylinder + faded ground disc (`src/assets/mars/`). Not a HiRISE/MOLA mesh. Daylight albedo under a midnight sky. Rover hardware cropped out. Photo azimuth is not surveyed to Jezero north. Extra mosaics are not overlaid — that was the horizon seam. |
-| Phobos, Deimos | Jacobson (2010), *AJ* 139, 668, Table 6; Phobos ½ṅ from Brozović, Jacobson & Park (2025), *AJ* | Mean precessing ellipses on each Laplace plane, not JPL MAR099 / Horizons. |
+| Stars / constellations | Hipparcos via [d3-celestial](https://github.com/ofrohn/d3-celestial) (BSD-2-Clause) | J2000, mag ≤ 6. Same 88 IAU figures as Earth. No proper motion. |
+| Planets, Sun, Earth, Moon | [astronomy-engine](https://github.com/cosinekitty/astronomy) | Mars-centered, one-step light time. Best ~1800–2100. |
+| Mars orientation | IAU WGCCRE 2015 | ICRF → Jezero horizon (east-north-up). |
+| Midnight | Sun hour angle 180° at Jezero | Nearest midnight to 12:00 UTC on that civil date. A sol is 24h 39m 35s. |
+| Orbit globe | [Viking MDIM 2.1](https://astrogeology.usgs.gov/search/map/mars_viking_colorized_global_mosaic_232m) · NASA/JPL/USGS | Real mosaic + derived bump. Not a procedural planet. |
+| Surface | Mastcam-Z [PIA24663](https://photojournal.jpl.nasa.gov/catalog/PIA24663) · NASA/JPL-Caltech/ASU/MSSS | One 360° photo cylinder + ground disc. Daylight photo, midnight sky. Not a DEM. |
+| Phobos / Deimos | Jacobson (2010); Phobos ½ṅ from Brozović et al. (2025) | Mean orbits, **not** Horizons. Fine for “which part of the sky.” Not for transits. |
 
-### Phobos and Deimos accuracy
-
-The moons are **not** integrated Horizons ephemerides. They are mean Keplerian ellipses with published node and periapsis rates, plus a tidal acceleration for Phobos. Typical along-track error is a few degrees near the present and grows over decades (Phobos more than Deimos). That is enough to put each moon in the correct region of sky. It is **not** enough for transit, eclipse, or occultation predictions.
-
-Aberration, refraction (Mars’s atmosphere is thin), and stellar proper motion are omitted. Star positions stay in J2000; the Mars pole is also expressed in J2000, so the frames match.
+Aberration, Mars refraction, and stellar proper motion are omitted. Photo azimuth is not surveyed to Jezero north. Full notes and regenerate steps: [`src/assets/mars/SOURCES.md`](src/assets/mars/SOURCES.md).
 
 ## Stack
 
-Vite, React, TypeScript, Three.js, Tailwind CSS, astronomy-engine. No backend.
+Vite, React, TypeScript, Three.js, Tailwind CSS, astronomy-engine. Client-only — no backend.
 
-## License notes
+## License
 
-Application code in this repository is available for reuse with the project. Star and constellation data retain their upstream terms (d3-celestial BSD-2-Clause; Hipparcos: ESA). Cite the papers above if you reuse the moon model. Surface photographs are NASA/JPL-Caltech/ASU/MSSS public-domain imagery (PIA24663). The orbit globe uses the USGS/NASA Viking MDIM 2.1 colorized mosaic. See [`src/assets/mars/SOURCES.md`](src/assets/mars/SOURCES.md).
+Application **code** is [MIT](LICENSE).
+
+NASA / JPL / USGS / ASU / MSSS **imagery is public domain**, not covered by the MIT license. Credit those agencies if you reuse the JPEGs. Star catalog terms stay with d3-celestial (BSD-2-Clause) and ESA Hipparcos. Cite the moon papers above if you reuse that model.

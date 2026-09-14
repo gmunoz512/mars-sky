@@ -9,5 +9,3 @@ export const JEZERO = {
   /** Mean volumetric radius used for the observer offset (km). */
   marsRadiusKm: 3389.5,
 } as const;
-
-export const AU_KM = 149_597_870.7;
