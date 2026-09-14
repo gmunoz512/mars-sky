@@ -140,7 +140,16 @@ def prepare_surface(van: Image.Image) -> None:
     # Horizon already wraps; blend only the sky/far hills so inpaint
     # in the near corners cannot stripe the join.
     band = blend_wrap_seam(band, blend=12, top_frac=0.62)
-    save_jpeg(band, OUT / "jezero-horizon.jpg", (2048, max(1, round(2048 * band.size[1] / band.size[0]))), 88)
+    # 2048×96 left only a handful of pixels on the distant ridges and
+    # mipmapped to mush. Keep native crop height (the hill band is ~300
+    # Mastcam-Z rows) and a wide wrap so phone DPR is not upscaling mush.
+    out_w = 8192
+    out_h = band.size[1]
+    sharp = band.resize((out_w, out_h), Image.Resampling.LANCZOS)
+    sharp = sharp.filter(ImageFilter.UnsharpMask(radius=1.2, percent=140, threshold=2))
+    sharp.convert("RGB").save(
+        OUT / "jezero-horizon.jpg", "JPEG", quality=85, optimize=True, progressive=True
+    )
 
     gs = int(0.11 * h)
     x0 = int(0.42 * w)

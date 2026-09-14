@@ -163,9 +163,9 @@ export function SkyView({ sky, mode, className }: Props) {
         groundRaw.dispose();
         groundTex.anisotropy = aniso;
 
-        const horizonTex = fadePhoto(horizonRaw, { top: 0.16 });
+        const horizonTex = fadePhoto(horizonRaw, { top: 0.08 });
         horizonRaw.dispose();
-        horizonTex.anisotropy = aniso;
+        sharpenHorizonMap(horizonTex);
         horizonTex.wrapS = THREE.RepeatWrapping;
         horizonTex.wrapT = THREE.ClampToEdgeWrapping;
 
@@ -183,7 +183,7 @@ export function SkyView({ sky, mode, className }: Props) {
           height: HORIZON_HEIGHT,
           span: Math.PI * 2,
           yaw: 0,
-          segments: 128,
+          segments: 256,
           horizonV: HORIZON_V,
         });
         scene.add(wrap.mesh);
@@ -420,6 +420,15 @@ export function SkyView({ sky, mode, className }: Props) {
 function smooth01(t: number): number {
   const u = Math.min(1, Math.max(0, t));
   return u * u * (3 - 2 * u);
+}
+
+/** Keep the horizon strip crisp — mipmaps turn a 200-px-tall ridge to mush. */
+function sharpenHorizonMap(tex: THREE.Texture): void {
+  tex.generateMipmaps = false;
+  tex.minFilter = THREE.LinearFilter;
+  tex.magFilter = THREE.LinearFilter;
+  tex.anisotropy = 1;
+  tex.needsUpdate = true;
 }
 
 /** Fade daylight sky (and optional side edges) so photos blend into the midnight sky. */
