@@ -5,7 +5,10 @@ import {
   ORBIT_FOV_DEG,
   PORTRAIT_FACE,
   VALLES_MARINERIS,
+  ORBIT_FILL,
+  clampOrbitPitch,
   narrowerFovDeg,
+  orbitCameraDir,
   orbitCameraDistance,
   polarCapExtents,
   portraitFaceUnitFixed,
@@ -27,9 +30,10 @@ describe("orbitCameraDistance", () => {
     const d = orbitCameraDistance(phone, ORBIT_FOV_DEG);
     const ang = sphereAngularDiameterDeg(d);
     const narrow = narrowerFovDeg(phone, ORBIT_FOV_DEG);
-    expect(d).toBeGreaterThan(8);
-    expect(ang).toBeLessThan(narrow * 0.78);
-    expect(ang).toBeGreaterThan(narrow * 0.42);
+    expect(d).toBeGreaterThan(10);
+    expect(ORBIT_FILL).toBeLessThan(0.55);
+    expect(ang).toBeLessThan(narrow * 0.56);
+    expect(ang).toBeGreaterThan(narrow * 0.28);
     // The old fixed dist ≈ 3.35 cropped the globe to a surface patch on phones.
     expect(sphereAngularDiameterDeg(3.35)).toBeGreaterThan(narrow);
   });
@@ -39,8 +43,20 @@ describe("orbitCameraDistance", () => {
     const d = orbitCameraDistance(wide, ORBIT_FOV_DEG);
     const ang = sphereAngularDiameterDeg(d);
     const narrow = narrowerFovDeg(wide, ORBIT_FOV_DEG);
-    expect(ang).toBeLessThan(narrow * 0.72);
-    expect(d).toBeGreaterThan(4);
+    expect(ang).toBeLessThan(narrow * 0.56);
+    expect(d).toBeGreaterThan(5);
+  });
+});
+
+describe("orbitCameraDir", () => {
+  it("starts on +Z and pitches toward +Y", () => {
+    const face = orbitCameraDir(0, 0);
+    expect(face.z).toBeCloseTo(1, 5);
+    expect(face.x).toBeCloseTo(0, 5);
+    const north = orbitCameraDir(0, Math.PI / 2);
+    expect(north.y).toBeCloseTo(1, 5);
+    expect(clampOrbitPitch(4)).toBeLessThan(1.3);
+    expect(clampOrbitPitch(-4)).toBeGreaterThan(-1.3);
   });
 });
 

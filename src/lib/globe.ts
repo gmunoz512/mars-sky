@@ -47,8 +47,24 @@ export function yawToFaceCamera(v: Vec3): number {
  * Fraction of the *shorter* viewport axis the globe should fill.
  * Small enough that a phone still shows a complete sphere in black space.
  */
-export const ORBIT_FILL = 0.64;
+export const ORBIT_FILL = 0.44;
 export const ORBIT_FOV_DEG = 36;
+/** How far the camera can pitch off the equator before it locks (radians). */
+export const ORBIT_PITCH_MAX = 1.2;
+
+export function clampOrbitPitch(pitch: number, max = ORBIT_PITCH_MAX): number {
+  return Math.min(max, Math.max(-max, pitch));
+}
+
+/** Unit camera direction. az=0, el=0 looks from +Z; +el is north. */
+export function orbitCameraDir(az: number, el: number): Vec3 {
+  const c = Math.cos(el);
+  return {
+    x: Math.sin(az) * c,
+    y: Math.sin(el),
+    z: Math.cos(az) * c,
+  };
+}
 
 /** Narrower of vertical FOV and the derived horizontal FOV, in degrees. */
 export function narrowerFovDeg(aspect: number, verticalFovDeg: number): number {

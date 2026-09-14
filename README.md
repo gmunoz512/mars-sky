@@ -44,7 +44,7 @@ For a user/org root site instead, set `VITE_BASE=/` in the workflow and host at 
 
 A single full-viewport canvas (the page does not scroll). Overlay chrome only: title, birthday fields, zoom, footnotes.
 
-1. **Orbit** (default) — a complete Viking MDIM 2.1 Mars globe centered in black space (NASA/JPL/USGS), Valles Marineris facing the camera, soft southern terminator, thin dusty limb, Jezero pin. The camera pulls back so a phone still shows the whole sphere, not a surface close-up. Drag to turn. Approach lighting eases toward midnight at Jezero.
+1. **Orbit** (default) — a complete Viking MDIM 2.1 Mars globe centered in black space (NASA/JPL/USGS), Valles Marineris facing the camera, soft southern terminator, thin dusty limb, Jezero pin. The camera sits far enough back that a phone shows most of the planet with black space around it. Drag or swipe to orbit up, down, left, and right. Approach lighting eases toward midnight at Jezero.
 2. **Surface** — standing in Jezero: one seamless Perseverance Mastcam-Z 360 ([PIA24663](https://photojournal.jpl.nasa.gov/catalog/PIA24663) Van Zyl Overlook) on the horizon and ground, computed night sky above. Hipparcos stars, IAU figures, Earth/planets when up, Phobos and Deimos. Drag to look around. NASA/JPL-Caltech/ASU/MSSS. Not a HiRISE DEM. Daylight photo; midnight sky.
 
 **Interaction:** **Zoom in**, the crater pin, or scroll/pinch in. Completing or changing a birthday (year + month + day) also zooms in automatically; further date edits update the sky in place. **Zoom out** or scroll/pinch out returns to the globe. `prefers-reduced-motion` skips the tween.

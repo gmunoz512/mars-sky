@@ -93,7 +93,7 @@ export default function App() {
             <p className="mt-3 text-[11px] leading-relaxed text-mute">
               {onSurface
                 ? "Local true solar midnight. Drag to look. Horizon is one Perseverance Mastcam-Z 360 (PIA24663), not a HiRISE mesh — daylight photo under a midnight sky."
-                : "Enter a birthday to stand on Jezero and look out."}{" "}
+                : "Enter a birthday to stand on Jezero and look out. Drag the globe to turn it."}{" "}
               <span className="text-ink/55">{formatUtc(sky.utc)}</span>
             </p>
           </div>
