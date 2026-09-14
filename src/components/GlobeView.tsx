@@ -13,6 +13,7 @@ import {
   portraitFaceUnitFixed,
   yawToFaceCamera,
 } from "../lib/globe";
+import { fitRendererToHost } from "../lib/renderer";
 import { JEZERO } from "../lib/jezero";
 import type { Vec3 } from "../lib/math";
 
@@ -269,13 +270,11 @@ export function GlobeView({ ls, sunFixed, approach, className, onEnterSurface }:
     };
 
     const resize = () => {
-      const w = host.clientWidth;
-      const h = host.clientHeight;
+      const { width: w, height: h } = fitRendererToHost(renderer, host);
       if (w < 2 || h < 2) return;
       aspectRef.current = w / h;
       camera.aspect = aspectRef.current;
       camera.updateProjectionMatrix();
-      renderer.setSize(w, h, false);
     };
     resize();
     const ro = new ResizeObserver(resize);
@@ -403,7 +402,10 @@ export function GlobeView({ ls, sunFixed, approach, className, onEnterSurface }:
 
   return (
     <div className={`relative overflow-hidden bg-dusk ${className ?? ""}`}>
-      <div ref={hostRef} className="absolute inset-0 touch-none cursor-grab active:cursor-grabbing" />
+      <div
+        ref={hostRef}
+        className="absolute inset-0 overflow-hidden touch-none cursor-grab active:cursor-grabbing"
+      />
       <div ref={overlayRef} className="pointer-events-none absolute inset-0 font-sans" />
     </div>
   );

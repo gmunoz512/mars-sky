@@ -3,6 +3,7 @@ import * as THREE from "three";
 import groundUrl from "../assets/mars/jezero-ground.jpg";
 import horizonUrl from "../assets/mars/jezero-horizon.jpg";
 import type { SkyLabel, SkyModel, SkyStar } from "../lib/sky";
+import { fitRendererToHost } from "../lib/renderer";
 import {
   HORIZON_EYE_Y,
   HORIZON_HEIGHT,
@@ -317,12 +318,10 @@ export function SkyView({ sky, mode, className }: Props) {
     };
 
     const resize = () => {
-      const w = host.clientWidth;
-      const h = host.clientHeight;
+      const { width: w, height: h } = fitRendererToHost(renderer, host);
       if (w < 2 || h < 2) return;
       camera.aspect = w / h;
       camera.updateProjectionMatrix();
-      renderer.setSize(w, h, false);
     };
     resize();
     const ro = new ResizeObserver(resize);
