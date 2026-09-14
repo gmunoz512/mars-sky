@@ -27,4 +27,7 @@ Credit: **NASA/JPL/USGS**.
 | `mars-bump.jpg` | Derived from the same mosaic luminance | High-pass bump for dusty relief |
 
 Regenerate with `python3 scripts/prepare-mars-textures.py` (needs Pillow + NumPy).
-NASA imagery is generally not copyrighted; credit as above.
+
+These JPEGs are NASA / USGS public-domain imagery. They are **not** covered by
+the repository MIT license. Credit NASA/JPL/USGS (globe) and
+NASA/JPL-Caltech/ASU/MSSS (surface) if you reuse them.
