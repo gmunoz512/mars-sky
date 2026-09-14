@@ -9,7 +9,7 @@ Credit: **NASA/JPL-Caltech/ASU/MSSS**.
 
 | File | Source | What we shipped |
 | --- | --- | --- |
-| `jezero-horizon.jpg` | [PIA24663](https://photojournal.jpl.nasa.gov/catalog/PIA24663) Van Zyl Overlook 360° | Full-width 360 wrap, rover hardware cropped/inpainted, 2048 px wide |
+| `jezero-horizon.jpg` | [PIA24663](https://photojournal.jpl.nasa.gov/catalog/PIA24663) Van Zyl Overlook 360° | Full-width 360 wrap, rover hardware cropped/inpainted, 4096×1024 (hill rows kept; both axes ≤ 4096 WebGL cap) |
 | `jezero-ground.jpg` | Same PIA24663 mosaic | Near-field rocks / soil, 1536² |
 
 One cylinder only. PIA24921 and PIA26378 are not composited as extra panels —

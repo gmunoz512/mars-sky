@@ -163,9 +163,9 @@ export function SkyView({ sky, mode, className }: Props) {
         groundRaw.dispose();
         groundTex.anisotropy = aniso;
 
-        const horizonTex = fadePhoto(horizonRaw, { top: 0.16 });
+        const horizonTex = fadePhoto(horizonRaw, { top: 0.06 });
         horizonRaw.dispose();
-        horizonTex.anisotropy = aniso;
+        sharpenHorizonMap(horizonTex);
         horizonTex.wrapS = THREE.RepeatWrapping;
         horizonTex.wrapT = THREE.ClampToEdgeWrapping;
 
@@ -183,7 +183,7 @@ export function SkyView({ sky, mode, className }: Props) {
           height: HORIZON_HEIGHT,
           span: Math.PI * 2,
           yaw: 0,
-          segments: 128,
+          segments: 256,
           horizonV: HORIZON_V,
         });
         scene.add(wrap.mesh);
@@ -422,6 +422,15 @@ function smooth01(t: number): number {
   return u * u * (3 - 2 * u);
 }
 
+/** Keep the horizon strip crisp — mipmaps turn a 200-px-tall ridge to mush. */
+function sharpenHorizonMap(tex: THREE.Texture): void {
+  tex.generateMipmaps = false;
+  tex.minFilter = THREE.LinearFilter;
+  tex.magFilter = THREE.LinearFilter;
+  tex.anisotropy = 1;
+  tex.needsUpdate = true;
+}
+
 /** Fade daylight sky (and optional side edges) so photos blend into the midnight sky. */
 function fadePhoto(tex: THREE.Texture, opts?: { top?: number; side?: number }): THREE.CanvasTexture {
   const img = tex.image as HTMLImageElement | ImageBitmap;
@@ -435,7 +444,10 @@ function fadePhoto(tex: THREE.Texture, opts?: { top?: number; side?: number }): 
   const data = ctx.getImageData(0, 0, w, h);
   const top = opts?.top ?? 0.2;
   const side = opts?.side ?? 0;
-  for (let y = 0; y < h; y += 1) {
+  // Only walk the fade band — the ridge/terrain rows stay alpha 255 so
+  // distant hills are not softened by a full-image getImageData pass.
+  const yFade = side > 0 ? h : Math.min(h, Math.ceil(top * h) + 1);
+  for (let y = 0; y < yFade; y += 1) {
     const ty = y / Math.max(1, h - 1);
     const ay = ty < top ? smooth01(ty / top) : 1;
     for (let x = 0; x < w; x += 1) {
