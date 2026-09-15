@@ -15,10 +15,17 @@ import {
 
 type Mode = "locked" | "look";
 
+export type SkyLookAt = {
+  az: number;
+  alt: number;
+  nonce: number;
+};
+
 type Props = {
   sky: SkyModel;
   mode: Mode;
   className?: string;
+  lookAt?: SkyLookAt | null;
 };
 
 type LabelEl = {
@@ -72,10 +79,11 @@ function fillStarGeometry(stars: SkyStar[]): THREE.BufferGeometry {
   return geo;
 }
 
-export function SkyView({ sky, mode, className }: Props) {
+export function SkyView({ sky, mode, className, lookAt }: Props) {
   const hostRef = useRef<HTMLDivElement>(null);
   const overlayRef = useRef<HTMLDivElement>(null);
   const applyRef = useRef<(model: SkyModel) => void>(() => undefined);
+  const lookRef = useRef<(target: SkyLookAt) => void>(() => undefined);
   const modeRef = useRef(mode);
   modeRef.current = mode;
 
@@ -247,13 +255,14 @@ export function SkyView({ sky, mode, className }: Props) {
       }
 
       for (const body of model.bodies) {
+        const notable = body.kind === "earth" || body.kind === "satellite";
         const radius =
           (body.kind === "sun"
             ? 0.018
-            : body.id === "earth"
-              ? 0.012
+            : body.kind === "earth"
+              ? 0.014
               : body.kind === "satellite"
-                ? 0.01
+                ? 0.012
                 : 0.0075) * SKY_RADIUS;
         const mesh = new THREE.Mesh(
           new THREE.SphereGeometry(radius, 16, 16),
@@ -261,13 +270,13 @@ export function SkyView({ sky, mode, className }: Props) {
         );
         mesh.position.set(body.dir.x * SKY_RADIUS, body.dir.y * SKY_RADIUS, body.dir.z * SKY_RADIUS);
         bodyGroup.add(mesh);
-        if (body.kind === "sun") {
+        if (body.kind === "sun" || notable) {
           const glow = new THREE.Mesh(
-            new THREE.SphereGeometry(radius * 2.4, 16, 16),
+            new THREE.SphereGeometry(radius * (notable ? 3.2 : 2.4), 16, 16),
             new THREE.MeshBasicMaterial({
               color: body.color,
               transparent: true,
-              opacity: 0.18,
+              opacity: notable ? 0.28 : 0.18,
               depthWrite: false,
             }),
           );
@@ -284,15 +293,26 @@ export function SkyView({ sky, mode, className }: Props) {
         el.className =
           label.kind === "constellation"
             ? "pointer-events-none absolute left-0 top-0 text-[10px] uppercase tracking-[0.22em] text-ink/45"
-            : label.kind === "body"
-              ? "pointer-events-none absolute left-0 top-0 text-[11px] tracking-[0.14em] text-ink/80"
-              : "pointer-events-none absolute left-0 top-0 text-[10px] tracking-[0.16em] text-ink/55";
+            : label.kind === "earth"
+              ? "pointer-events-none absolute left-0 top-0 text-[12px] font-medium tracking-[0.16em] text-[#8ec6e6]"
+              : label.kind === "moon"
+                ? "pointer-events-none absolute left-0 top-0 text-[12px] font-medium tracking-[0.16em] text-[#e8c4a0]"
+                : label.kind === "body"
+                  ? "pointer-events-none absolute left-0 top-0 text-[11px] tracking-[0.14em] text-ink/80"
+                  : "pointer-events-none absolute left-0 top-0 text-[10px] tracking-[0.16em] text-ink/55";
         overlay.appendChild(el);
         labels.push({ el, label });
       }
     };
 
     applyRef.current = applySky;
+    lookRef.current = (target: SkyLookAt) => {
+      targetYaw.current = (target.az * Math.PI) / 180;
+      targetPitch.current = Math.min(
+        1.35,
+        Math.max(-0.28, (target.alt * Math.PI) / 180),
+      );
+    };
     applySky(sky);
 
     const tmp = new THREE.Vector3();
@@ -312,7 +332,12 @@ export function SkyView({ sky, mode, className }: Props) {
           continue;
         }
         item.el.style.display = "block";
-        const yOff = item.label.kind === "constellation" ? 0 : -16;
+        const yOff =
+          item.label.kind === "constellation"
+            ? 0
+            : item.label.kind === "earth" || item.label.kind === "moon"
+              ? -22
+              : -16;
         item.el.style.transform = `translate(-50%, -50%) translate(${(tmp.x * 0.5 + 0.5) * w}px, ${(-tmp.y * 0.5 + 0.5) * h + yOff}px)`;
       }
     };
@@ -406,6 +431,11 @@ export function SkyView({ sky, mode, className }: Props) {
   useEffect(() => {
     applyRef.current(sky);
   }, [sky]);
+
+  useEffect(() => {
+    if (!lookAt) return;
+    lookRef.current(lookAt);
+  }, [lookAt]);
 
   return (
     <div

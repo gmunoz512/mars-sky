@@ -40,7 +40,7 @@ export type SkyBody = SkyPoint & {
 
 export type SkyLabel = SkyPoint & {
   text: string;
-  kind: "constellation" | "star" | "body";
+  kind: "constellation" | "star" | "body" | "earth" | "moon";
 };
 
 export type SkyModel = {
@@ -195,7 +195,9 @@ export function computeSky(date: CivilDate): SkyModel {
       if (h.altitudeDeg >= 0) bodies.push(item);
     } else {
       bodies.push(item);
-      if (h.altitudeDeg > 3) {
+      if (spec.kind === "earth") {
+        labels.push({ ...point, text: spec.name, kind: "earth" });
+      } else if (h.altitudeDeg > 3) {
         labels.push({ ...point, text: spec.name, kind: "body" });
       }
     }
@@ -213,7 +215,7 @@ export function computeSky(date: CivilDate): SkyModel {
       color: moon.name === "Phobos" ? "#d9b39a" : "#c8c2b6",
     };
     bodies.push(item);
-    labels.push({ ...point, text: moon.name, kind: "body" });
+    labels.push({ ...point, text: moon.name, kind: "moon" });
   }
 
   return {

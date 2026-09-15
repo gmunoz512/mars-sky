@@ -23,6 +23,17 @@ export function midnightResidualDeg(date: Date): number {
 }
 
 /**
+ * Local true solar time at Jezero (hours, 0–24).
+ * Noon = 12 when the Sun is on the meridian; midnight = 0 when HA = 180°.
+ */
+export function localTrueSolarTimeHours(date: Date): number {
+  const sunLon = subsolarEastLongitude(date);
+  const hourAngle = wrap180(JEZERO.longitudeEastDeg - sunLon);
+  const hours = 12 + hourAngle / 15;
+  return ((hours % 24) + 24) % 24;
+}
+
+/**
  * UTC instant of Jezero local true solar midnight nearest 12:00 UTC
  * on the given Earth civil date. One Mars sol is 24h 39m 35s, so each
  * Earth date has one such midnight.
