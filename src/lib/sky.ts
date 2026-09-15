@@ -12,7 +12,7 @@ import {
   marsBodyFixedFromEqj,
   type Horizon,
 } from "./marsFrame";
-import { type Vec3, hypot3, mulVec, normalize, raDecToEqj } from "./math";
+import { type Vec3, KM_PER_AU, hypot3, mulVec, normalize, raDecToEqj } from "./math";
 import { findJezeroMidnight } from "./midnight";
 import { marsMoonsEqjKm } from "./moons";
 import { jezeroSeason, marsSolarLongitude } from "./season";
@@ -42,14 +42,15 @@ export type SkyBody = SkyPoint & {
 export type OrbitBody = {
   id: string;
   name: string;
-  kind: "planet" | "earth";
+  kind: "sun" | "planet" | "earth" | "satellite";
   color: string;
   /** Unit vector toward the body in Mars IAU body-fixed. */
   fixed: Vec3;
+  /** Mars-centered distance in AU (moons converted from km). */
   distAu: number;
 };
 
-/** Naked-eye planets called out around the orbit globe. */
+/** Naked-eye planets called out in the orbit-view sky (plus Sun and moons separately). */
 export const ORBIT_PLANET_IDS = ["mercury", "venus", "earth", "jupiter", "saturn"] as const;
 
 export type SkyLabel = SkyPoint & {
@@ -69,7 +70,7 @@ export type SkyModel = {
   sun: SkyBody | null;
   /** Unit vector toward the Sun in Mars body-fixed (IAU +X Airy-0, +Z north). */
   sunFixed: Vec3;
-  /** Planets as seen from Mars, for the orbit globe. */
+  /** Planets, Sun, and moons as seen from Mars, for the orbit globe sky. */
   orbitBodies: OrbitBody[];
 };
 
@@ -198,14 +199,25 @@ export function computeSky(date: CivilDate): SkyModel {
 
   for (const spec of PLANETS) {
     const eqjAu = marsCenteredEqjAu(spec.body, time);
-    if (orbitIds.has(spec.id) && (spec.kind === "earth" || spec.kind === "planet")) {
+    const distAu = hypot3(eqjAu);
+    const fixed = normalize(mulVec(frame.eqjToFixed, eqjAu));
+    if (spec.kind === "sun") {
+      orbitBodies.push({
+        id: spec.id,
+        name: spec.name,
+        kind: "sun",
+        color: spec.color,
+        fixed,
+        distAu,
+      });
+    } else if (orbitIds.has(spec.id) && (spec.kind === "earth" || spec.kind === "planet")) {
       orbitBodies.push({
         id: spec.id,
         name: spec.name,
         kind: spec.kind,
         color: spec.color,
-        fixed: normalize(mulVec(frame.eqjToFixed, eqjAu)),
-        distAu: hypot3(eqjAu),
+        fixed,
+        distAu,
       });
     }
     const h = eqjToHorizon(eqjAu, frame.eqjToFixed);
@@ -232,6 +244,15 @@ export function computeSky(date: CivilDate): SkyModel {
   }
 
   for (const moon of marsMoonsEqjKm(time.tt)) {
+    const fixed = normalize(mulVec(frame.eqjToFixed, moon.eqjKm));
+    orbitBodies.push({
+      id: moon.name.toLowerCase(),
+      name: moon.name,
+      kind: "satellite",
+      color: moon.name === "Phobos" ? "#d9b39a" : "#c8c2b6",
+      fixed,
+      distAu: hypot3(moon.eqjKm) / KM_PER_AU,
+    });
     const h = eqjToHorizon(moon.eqjKm, frame.eqjToFixed, observer);
     if (h.altitudeDeg < 0) continue;
     const point = fromHorizon(h);

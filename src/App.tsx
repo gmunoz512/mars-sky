@@ -129,8 +129,8 @@ export default function App() {
             </button>
           )}
           <p className="mt-3 text-[11px] leading-relaxed text-mute">
-            Set a birthday, then zoom in to stand on Jezero and look out. Drag the globe to turn
-            it.
+            Set a birthday, then zoom in to stand on Jezero and look out. Drag the globe to look
+            around Mars.
           </p>
         </div>
       </div>

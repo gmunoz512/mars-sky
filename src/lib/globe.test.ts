@@ -2,22 +2,28 @@ import { describe, expect, it } from "vitest";
 import {
   GLOBE_CREDIT,
   GLOBE_SOURCES,
-  ORBIT_BODY_DISTANCE,
   ORBIT_FOV_DEG,
+  ORBIT_MOON_FAR,
+  ORBIT_MOON_NEAR,
+  ORBIT_SKY_FAR,
+  ORBIT_SKY_NEAR,
   PORTRAIT_FACE,
   VALLES_MARINERIS,
   ORBIT_FILL,
   clampOrbitPitch,
   narrowerFovDeg,
+  orbitBodyOccluded,
   orbitCameraDir,
   orbitCameraDistance,
-  orbitMarkerVisible,
+  orbitSkyDistance,
+  orbitSkyPosition,
   polarCapExtents,
   portraitFaceUnitFixed,
   rayHitsSphereBefore,
   sphereAngularDiameterDeg,
   yawToFaceCamera,
 } from "./globe";
+import { computeSky } from "./sky";
 
 describe("GLOBE_SOURCES", () => {
   it("cites the USGS/NASA Viking MDIM mosaic, not a generated albedo", () => {
@@ -81,22 +87,81 @@ describe("portrait face", () => {
   });
 });
 
-describe("orbit planet markers", () => {
+describe("orbit sky placement", () => {
   const camera = { x: 0, y: 0, z: 10 };
 
-  it("sits just outside the atmosphere, not on the mosaic", () => {
-    expect(ORBIT_BODY_DISTANCE).toBeGreaterThan(1.05);
-    expect(ORBIT_BODY_DISTANCE).toBeLessThan(2);
+  it("puts planets beyond the phone camera so they read as background sky", () => {
+    const phone = orbitCameraDistance(390 / 844, ORBIT_FOV_DEG);
+    expect(ORBIT_SKY_NEAR).toBeGreaterThan(phone);
+    expect(orbitSkyDistance(0.35, "earth")).toBeGreaterThan(phone);
+    expect(orbitSkyDistance(1.5, "sun")).toBeGreaterThan(orbitSkyDistance(0.5, "planet"));
+    expect(orbitSkyDistance(5, "planet")).toBeGreaterThan(orbitSkyDistance(1.5, "sun"));
+    expect(orbitSkyDistance(10, "planet")).toBeLessThanOrEqual(ORBIT_SKY_FAR);
   });
 
-  it("hides a marker behind the globe and one drawn over the disk", () => {
-    expect(rayHitsSphereBefore(camera, { x: 0, y: 0, z: -1.48 }, 1.04)).toBe(true);
-    expect(orbitMarkerVisible(camera, { x: 0, y: 0, z: -1.48 })).toBe(false);
-    expect(orbitMarkerVisible(camera, { x: 0, y: 0, z: 1.48 })).toBe(false);
+  it("keeps Phobos and Deimos close to Mars, inward of every planet shell", () => {
+    expect(orbitSkyDistance(9_375 / 149_597_870.7, "satellite")).toBeGreaterThan(ORBIT_MOON_NEAR - 0.05);
+    expect(orbitSkyDistance(23_458 / 149_597_870.7, "satellite")).toBeLessThan(ORBIT_MOON_FAR + 0.05);
+    expect(orbitSkyDistance(23_458 / 149_597_870.7, "satellite")).toBeLessThan(ORBIT_SKY_NEAR);
   });
 
-  it("keeps a marker that has risen around the limb", () => {
-    expect(orbitMarkerVisible(camera, { x: 1.48, y: 0, z: 0 })).toBe(true);
+  it("hides a body behind the globe and keeps one in the surrounding sky", () => {
+    expect(rayHitsSphereBefore(camera, { x: 0, y: 0, z: -20 }, 1.02)).toBe(true);
+    expect(orbitBodyOccluded(camera, { x: 0, y: 0, z: -20 })).toBe(true);
+    expect(orbitBodyOccluded(camera, { x: 24, y: 0, z: 0 })).toBe(false);
+  });
+
+  it("keeps a moon in front of the disk (transit), not treated as a limb sticker", () => {
+    expect(orbitBodyOccluded(camera, { x: 0, y: 0, z: 4 })).toBe(false);
+  });
+
+  it("places a body-fixed direction on the compressed shell in Three.js axes", () => {
+    const pos = orbitSkyPosition({ x: 1, y: 0, z: 0 }, 1.5, "sun");
+    const r = Math.hypot(pos.x, pos.y, pos.z);
+    expect(r).toBeCloseTo(orbitSkyDistance(1.5, "sun"), 5);
+    expect(pos.x).toBeGreaterThan(0);
+    expect(Math.abs(pos.y)).toBeLessThan(1e-9);
+  });
+
+  it("reveals different bodies as the camera orbits, including Earth and the Sun", () => {
+    const sky = computeSky({ year: 2021, month: 2, day: 18 });
+    const yaw = yawToFaceCamera(portraitFaceUnitFixed());
+    const camDist = orbitCameraDistance(1440 / 900, ORBIT_FOV_DEG);
+    const halfFov = ((ORBIT_FOV_DEG * Math.PI) / 180) * 0.85;
+    const seen = new Set<string>();
+    const occludedAtRest = new Set<string>();
+    const dir0 = orbitCameraDir(0, 0.16);
+    const cam0 = { x: dir0.x * camDist, y: dir0.y * camDist, z: dir0.z * camDist };
+    const rotY = (v: { x: number; y: number; z: number }, yawRad: number) => {
+      const c = Math.cos(yawRad);
+      const s = Math.sin(yawRad);
+      return { x: c * v.x + s * v.z, y: v.y, z: -s * v.x + c * v.z };
+    };
+    for (const body of sky.orbitBodies) {
+      const world = rotY(orbitSkyPosition(body.fixed, body.distAu, body.kind), yaw);
+      if (orbitBodyOccluded(cam0, world)) occludedAtRest.add(body.id);
+    }
+    for (let i = 0; i < 16; i++) {
+      const dir = orbitCameraDir((i / 16) * Math.PI * 2, 0.16);
+      const camera = { x: dir.x * camDist, y: dir.y * camDist, z: dir.z * camDist };
+      const lookLen = Math.hypot(camera.x, camera.y, camera.z);
+      for (const body of sky.orbitBodies) {
+        const world = rotY(orbitSkyPosition(body.fixed, body.distAu, body.kind), yaw);
+        if (orbitBodyOccluded(camera, world)) continue;
+        const vx = world.x - camera.x;
+        const vy = world.y - camera.y;
+        const vz = world.z - camera.z;
+        const vLen = Math.hypot(vx, vy, vz);
+        const cos = (-camera.x * vx - camera.y * vy - camera.z * vz) / (vLen * lookLen);
+        const ang = Math.acos(Math.min(1, Math.max(-1, cos)));
+        if (ang < halfFov) seen.add(body.id);
+      }
+    }
+    expect(seen.has("earth")).toBe(true);
+    expect(seen.has("sun")).toBe(true);
+    expect(seen.size).toBeGreaterThanOrEqual(5);
+    expect(occludedAtRest.size).toBeGreaterThan(0);
+    expect([...occludedAtRest].some((id) => seen.has(id))).toBe(true);
   });
 });
 

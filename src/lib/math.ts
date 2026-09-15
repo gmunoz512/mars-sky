@@ -1,5 +1,8 @@
 export type Vec3 = { x: number; y: number; z: number };
 
+/** IAU astronomical unit, km. */
+export const KM_PER_AU = 149_597_870.7;
+
 /** Row-major 3×3 matrix. */
 export type Mat3 = [
   number,

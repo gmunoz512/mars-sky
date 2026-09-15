@@ -3,15 +3,15 @@ import * as THREE from "three";
 import albedoUrl from "../assets/mars/mars-albedo.jpg";
 import bumpUrl from "../assets/mars/mars-bump.jpg";
 import {
-  ORBIT_BODY_DISTANCE,
   ORBIT_FOV_DEG,
   bodyFixedToThree,
   clampOrbitPitch,
   composeGlobeAlbedo,
   jezeroUnitFixed,
+  orbitBodyOccluded,
   orbitCameraDir,
   orbitCameraDistance,
-  orbitMarkerVisible,
+  orbitSkyPosition,
   portraitFaceUnitFixed,
   yawToFaceCamera,
 } from "../lib/globe";
@@ -90,20 +90,21 @@ export function GlobeView({ ls, sunFixed, orbitBodies, approach, className, onEn
     host.appendChild(renderer.domElement);
 
     const scene = new THREE.Scene();
-    const camera = new THREE.PerspectiveCamera(ORBIT_FOV_DEG, 1, 0.08, 80);
+    const camera = new THREE.PerspectiveCamera(ORBIT_FOV_DEG, 1, 0.08, 140);
     const aspectRef = { current: 1 };
     camera.up.set(0, 1, 0);
 
     const starGeo = new THREE.BufferGeometry();
     const starCount = 900;
     const starPos = new Float32Array(starCount * 3);
+    const starR = 58;
     for (let i = 0; i < starCount; i++) {
       const z = Math.random() * 2 - 1;
       const a = Math.random() * Math.PI * 2;
       const r = Math.sqrt(1 - z * z);
-      starPos[i * 3] = r * Math.cos(a) * 40;
-      starPos[i * 3 + 1] = z * 40;
-      starPos[i * 3 + 2] = r * Math.sin(a) * 40;
+      starPos[i * 3] = r * Math.cos(a) * starR;
+      starPos[i * 3 + 1] = z * starR;
+      starPos[i * 3 + 2] = r * Math.sin(a) * starR;
     }
     starGeo.setAttribute("position", new THREE.BufferAttribute(starPos, 3));
     const stars = new THREE.Points(
@@ -121,6 +122,8 @@ export function GlobeView({ ls, sunFixed, orbitBodies, approach, className, onEn
 
     const marsGroup = new THREE.Group();
     scene.add(marsGroup);
+    const celestialGroup = new THREE.Group();
+    scene.add(celestialGroup);
 
     const marsMat = new THREE.MeshStandardMaterial({
       color: 0xffffff,
@@ -233,115 +236,155 @@ export function GlobeView({ ls, sunFixed, orbitBodies, approach, className, onEn
       "pointer-events-none absolute left-0 top-0 text-[10px] uppercase tracking-[0.22em] text-ink/70";
     overlay.appendChild(label);
 
-    type PlanetMarker = {
-      earth: boolean;
+    type SkyMarker = {
+      kind: OrbitBody["kind"];
+      rank: number;
       core: THREE.Mesh;
       halo: THREE.Mesh;
       label: HTMLDivElement;
       coreMat: THREE.MeshBasicMaterial;
       haloMat: THREE.MeshBasicMaterial;
     };
-    const planetGeo = new THREE.SphereGeometry(1, 20, 16);
-    const planetMarkers = new Map<string, PlanetMarker>();
+    const planetGeo = new THREE.SphereGeometry(1, 24, 18);
+    const skyMarkers = new Map<string, SkyMarker>();
     const worldMarker = new THREE.Vector3();
     const ndcScratch = new THREE.Vector3();
 
-    const syncPlanetMarkers = (bodies: OrbitBody[]) => {
+    const labelClassFor = (kind: OrbitBody["kind"]) => {
+      if (kind === "earth") {
+        return "pointer-events-none absolute left-0 top-0 text-[11px] font-medium tracking-[0.16em] drop-shadow-[0_0_10px_rgba(142,198,230,0.55)]";
+      }
+      if (kind === "sun") {
+        return "pointer-events-none absolute left-0 top-0 text-[11px] font-medium tracking-[0.18em] drop-shadow-[0_0_12px_rgba(244,213,154,0.55)]";
+      }
+      if (kind === "satellite") {
+        return "pointer-events-none absolute left-0 top-0 text-[9px] uppercase tracking-[0.18em] text-ink/70";
+      }
+      return "pointer-events-none absolute left-0 top-0 text-[10px] uppercase tracking-[0.2em] text-ink/80";
+    };
+
+    const rankFor = (kind: OrbitBody["kind"]) => {
+      if (kind === "earth") return 0;
+      if (kind === "sun") return 1;
+      if (kind === "satellite") return 2;
+      return 3;
+    };
+
+    const syncSkyMarkers = (bodies: OrbitBody[]) => {
       const seen = new Set<string>();
       for (const body of bodies) {
         seen.add(body.id);
-        let marker = planetMarkers.get(body.id);
+        let marker = skyMarkers.get(body.id);
         if (!marker) {
-          const earth = body.kind === "earth";
           const coreMat = new THREE.MeshBasicMaterial({
             color: body.color,
             transparent: true,
-            depthWrite: false,
+            depthWrite: true,
+            depthTest: true,
           });
           const haloMat = new THREE.MeshBasicMaterial({
             color: body.color,
             transparent: true,
-            opacity: earth ? 0.34 : 0.2,
+            opacity: body.kind === "sun" ? 0.42 : body.kind === "earth" ? 0.34 : 0.22,
             depthWrite: false,
+            depthTest: true,
             blending: THREE.AdditiveBlending,
           });
           const core = new THREE.Mesh(planetGeo, coreMat);
           const halo = new THREE.Mesh(planetGeo, haloMat);
-          marsGroup.add(core);
-          marsGroup.add(halo);
+          celestialGroup.add(core);
+          celestialGroup.add(halo);
           const el = document.createElement("div");
           el.textContent = body.name;
           el.style.color = body.color;
-          el.className = earth
-            ? "pointer-events-none absolute left-0 top-0 text-[11px] font-medium tracking-[0.16em] drop-shadow-[0_0_10px_rgba(142,198,230,0.55)]"
-            : "pointer-events-none absolute left-0 top-0 text-[10px] uppercase tracking-[0.2em] text-ink/80";
+          el.className = labelClassFor(body.kind);
           overlay.appendChild(el);
-          marker = { earth, core, halo, label: el, coreMat, haloMat };
-          planetMarkers.set(body.id, marker);
+          marker = {
+            kind: body.kind,
+            rank: rankFor(body.kind),
+            core,
+            halo,
+            label: el,
+            coreMat,
+            haloMat,
+          };
+          skyMarkers.set(body.id, marker);
         }
-        const dir = bodyFixedToThree(body.fixed);
-        worldMarker.set(dir.x, dir.y, dir.z).setLength(ORBIT_BODY_DISTANCE);
+        const pos = orbitSkyPosition(body.fixed, body.distAu, body.kind);
+        worldMarker.set(pos.x, pos.y, pos.z);
         marker.core.position.copy(worldMarker);
         marker.halo.position.copy(worldMarker);
       }
-      for (const [id, marker] of planetMarkers) {
+      for (const [id, marker] of skyMarkers) {
         if (seen.has(id)) continue;
-        marsGroup.remove(marker.core);
-        marsGroup.remove(marker.halo);
+        celestialGroup.remove(marker.core);
+        celestialGroup.remove(marker.halo);
         marker.coreMat.dispose();
         marker.haloMat.dispose();
         marker.label.remove();
-        planetMarkers.delete(id);
+        skyMarkers.delete(id);
       }
     };
 
-    const placePlanetMarkers = (approachAmt: number) => {
-      const camLen = camera.position.length();
+    const placeSkyMarkers = (approachAmt: number) => {
       const pulse = 0.28 + 0.16 * Math.sin(performance.now() * 0.0024);
       const w = host.clientWidth;
       const h = host.clientHeight;
       const camV = { x: camera.position.x, y: camera.position.y, z: camera.position.z };
-      const placed: { earth: boolean; ndcX: number; ndcY: number }[] = [];
-      const queue: {
-        marker: PlanetMarker;
-        ndcX: number;
-        ndcY: number;
-        show: boolean;
-      }[] = [];
-      for (const marker of planetMarkers.values()) {
-        const coreR = (marker.earth ? 0.0056 : 0.0038) * camLen;
-        const haloR = (marker.earth ? 0.013 : 0.008) * camLen;
+      const placed: { rank: number; ndcX: number; ndcY: number }[] = [];
+      const queue: { marker: SkyMarker; ndcX: number; ndcY: number }[] = [];
+      const fade = approachAmt < 0.42 ? 1 - approachAmt / 0.42 : 0;
+
+      for (const marker of skyMarkers.values()) {
+        worldMarker.copy(marker.core.position).applyMatrix4(celestialGroup.matrixWorld);
+        const dist = camera.position.distanceTo(worldMarker);
+        const ang =
+          marker.kind === "sun"
+            ? 0.015
+            : marker.kind === "earth"
+              ? 0.009
+              : marker.kind === "satellite"
+                ? 0.0058
+                : 0.0072;
+        const coreR = Math.max(0.04, dist * ang);
+        const haloMul = marker.kind === "sun" ? 2.7 : marker.kind === "earth" ? 2.35 : 2.15;
         marker.core.scale.setScalar(coreR);
-        marker.halo.scale.setScalar(haloR);
-        if (marker.earth) marker.haloMat.opacity = pulse;
-        worldMarker.copy(marker.core.position).applyMatrix4(marsGroup.matrixWorld);
-        const around = orbitMarkerVisible(camV, {
+        marker.halo.scale.setScalar(coreR * haloMul);
+        marker.coreMat.opacity = fade;
+        if (marker.kind === "earth") marker.haloMat.opacity = pulse * fade;
+        else if (marker.kind === "sun") marker.haloMat.opacity = 0.42 * fade;
+        else marker.haloMat.opacity = 0.22 * fade;
+
+        const occluded = orbitBodyOccluded(camV, {
           x: worldMarker.x,
           y: worldMarker.y,
           z: worldMarker.z,
         });
         const ndc = ndcScratch.copy(worldMarker).project(camera);
         const inFrame =
-          ndc.z < 1 && ndc.x > -0.98 && ndc.x < 0.98 && ndc.y > -0.92 && ndc.y < 0.92;
-        const show = around && inFrame && approachAmt < 0.42;
+          ndc.z < 1 && ndc.x > -1.05 && ndc.x < 1.05 && ndc.y > -1.02 && ndc.y < 1.02;
+        const show = !occluded && inFrame && fade > 0.04;
         marker.core.visible = show;
         marker.halo.visible = show;
         marker.label.style.display = "none";
-        if (show) queue.push({ marker, ndcX: ndc.x, ndcY: ndc.y, show });
+        if (show) queue.push({ marker, ndcX: ndc.x, ndcY: ndc.y });
       }
-      queue.sort((a, b) => Number(b.marker.earth) - Number(a.marker.earth));
+      queue.sort((a, b) => a.marker.rank - b.marker.rank);
       for (const item of queue) {
+        const minSep = item.marker.kind === "earth" || item.marker.kind === "sun" ? 0.01 : 0.016;
         const crowded = placed.some((p) => {
           const dx = p.ndcX - item.ndcX;
           const dy = p.ndcY - item.ndcY;
-          return dx * dx + dy * dy < 0.016;
+          return dx * dx + dy * dy < minSep;
         });
-        if (crowded && !item.marker.earth) continue;
+        if (crowded && item.marker.rank > 1) continue;
         item.marker.label.style.display = "block";
-        item.marker.label.style.opacity = item.marker.earth ? "1" : "0.88";
-        const lift = item.marker.earth ? -160 : -130;
+        item.marker.label.style.opacity =
+          item.marker.kind === "earth" || item.marker.kind === "sun" ? "1" : "0.88";
+        const lift =
+          item.marker.kind === "earth" ? -160 : item.marker.kind === "sun" ? -155 : -130;
         item.marker.label.style.transform = `translate(-50%, ${lift}%) translate(${(item.ndcX * 0.5 + 0.5) * w}px, ${(-item.ndcY * 0.5 + 0.5) * h}px)`;
-        placed.push({ earth: item.marker.earth, ndcX: item.ndcX, ndcY: item.ndcY });
+        placed.push({ rank: item.marker.rank, ndcX: item.ndcX, ndcY: item.ndcY });
       }
     };
 
@@ -456,7 +499,9 @@ export function GlobeView({ ls, sunFixed, orbitBodies, approach, className, onEn
       userAz.current += (targetAz.current - userAz.current) * 0.14;
       userEl.current += (targetEl.current - userEl.current) * 0.14;
       marsGroup.rotation.y = vallesYaw * (1 - a) + jezeroYaw * a;
+      celestialGroup.rotation.y = marsGroup.rotation.y;
       marsGroup.updateMatrixWorld();
+      celestialGroup.updateMatrixWorld();
 
       const orbitDist = orbitCameraDistance(aspectRef.current, ORBIT_FOV_DEG);
       const dist = orbitDist * (1 - a) + 1.12 * a;
@@ -478,8 +523,8 @@ export function GlobeView({ ls, sunFixed, orbitBodies, approach, className, onEn
       glowMat.opacity = 0.22 + 0.16 * Math.sin(performance.now() * 0.002);
       applySun(a);
       placeLabel();
-      syncPlanetMarkers(bodiesRef.current);
-      placePlanetMarkers(a);
+      syncSkyMarkers(bodiesRef.current);
+      placeSkyMarkers(a);
       renderer.render(scene, camera);
     };
 
@@ -508,13 +553,13 @@ export function GlobeView({ ls, sunFixed, orbitBodies, approach, className, onEn
       (pin.material as THREE.Material).dispose();
       glow.geometry.dispose();
       (glow.material as THREE.Material).dispose();
-      for (const marker of planetMarkers.values()) {
-        marsGroup.remove(marker.core);
-        marsGroup.remove(marker.halo);
+      for (const marker of skyMarkers.values()) {
+        celestialGroup.remove(marker.core);
+        celestialGroup.remove(marker.halo);
         marker.coreMat.dispose();
         marker.haloMat.dispose();
       }
-      planetMarkers.clear();
+      skyMarkers.clear();
       planetGeo.dispose();
       starGeo.dispose();
       (stars.material as THREE.Material).dispose();
