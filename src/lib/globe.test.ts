@@ -17,6 +17,7 @@ import {
   orbitCameraDistance,
   orbitSkyDistance,
   orbitSkyPosition,
+  orbitBodyAngularSize,
   polarCapExtents,
   portraitFaceUnitFixed,
   rayHitsSphereBefore,
@@ -97,6 +98,8 @@ describe("orbit sky placement", () => {
     expect(orbitSkyDistance(1.5, "sun")).toBeGreaterThan(orbitSkyDistance(0.5, "planet"));
     expect(orbitSkyDistance(5, "planet")).toBeGreaterThan(orbitSkyDistance(1.5, "sun"));
     expect(orbitSkyDistance(10, "planet")).toBeLessThanOrEqual(ORBIT_SKY_FAR);
+    expect(orbitBodyAngularSize("earth", 0.8)).toBeGreaterThan(orbitBodyAngularSize("planet", 5));
+    expect(orbitBodyAngularSize("sun", 1.5)).toBeGreaterThan(orbitBodyAngularSize("planet", 1.5));
   });
 
   it("keeps Phobos and Deimos close to Mars, inward of every planet shell", () => {

@@ -130,7 +130,7 @@ export default function App() {
           )}
           <p className="mt-3 text-[11px] leading-relaxed text-mute">
             Set a birthday, then zoom in to stand on Jezero and look out. Drag the globe to look
-            around Mars.
+            around Mars — other worlds sit in that sky.
           </p>
         </div>
       </div>

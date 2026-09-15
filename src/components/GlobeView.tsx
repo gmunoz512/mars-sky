@@ -8,6 +8,7 @@ import {
   clampOrbitPitch,
   composeGlobeAlbedo,
   jezeroUnitFixed,
+  orbitBodyAngularSize,
   orbitBodyOccluded,
   orbitCameraDir,
   orbitCameraDistance,
@@ -238,6 +239,7 @@ export function GlobeView({ ls, sunFixed, orbitBodies, approach, className, onEn
 
     type SkyMarker = {
       kind: OrbitBody["kind"];
+      distAu: number;
       rank: number;
       core: THREE.Mesh;
       halo: THREE.Mesh;
@@ -301,6 +303,7 @@ export function GlobeView({ ls, sunFixed, orbitBodies, approach, className, onEn
           overlay.appendChild(el);
           marker = {
             kind: body.kind,
+            distAu: body.distAu,
             rank: rankFor(body.kind),
             core,
             halo,
@@ -310,6 +313,8 @@ export function GlobeView({ ls, sunFixed, orbitBodies, approach, className, onEn
           };
           skyMarkers.set(body.id, marker);
         }
+        marker.distAu = body.distAu;
+        marker.kind = body.kind;
         const pos = orbitSkyPosition(body.fixed, body.distAu, body.kind);
         worldMarker.set(pos.x, pos.y, pos.z);
         marker.core.position.copy(worldMarker);
@@ -338,15 +343,8 @@ export function GlobeView({ ls, sunFixed, orbitBodies, approach, className, onEn
       for (const marker of skyMarkers.values()) {
         worldMarker.copy(marker.core.position).applyMatrix4(celestialGroup.matrixWorld);
         const dist = camera.position.distanceTo(worldMarker);
-        const ang =
-          marker.kind === "sun"
-            ? 0.015
-            : marker.kind === "earth"
-              ? 0.009
-              : marker.kind === "satellite"
-                ? 0.0058
-                : 0.0072;
-        const coreR = Math.max(0.04, dist * ang);
+        const ang = orbitBodyAngularSize(marker.kind, marker.distAu);
+        const coreR = Math.max(0.035, dist * ang);
         const haloMul = marker.kind === "sun" ? 2.7 : marker.kind === "earth" ? 2.35 : 2.15;
         marker.core.scale.setScalar(coreR);
         marker.halo.scale.setScalar(coreR * haloMul);
