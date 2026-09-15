@@ -10,7 +10,7 @@ import {
 import { hypot3, mulVec } from "./math";
 import { findJezeroMidnight, midnightResidualDeg } from "./midnight";
 import { marsMoonsEqjKm } from "./moons";
-import { bodyFixedToThree, jezeroUnitFixed } from "./globe";
+import { bodyFixedToThree, jezeroUnitFixed, orbitSkyDistance } from "./globe";
 import { computeSky } from "./sky";
 import { dot } from "./math";
 
@@ -103,13 +103,16 @@ describe("birthday sky", () => {
     }
   });
 
-  it("places Earth and naked-eye planets in Mars body-fixed for the orbit globe", () => {
+  it("places Earth, Sun, naked-eye planets, and Mars's moons in Mars body-fixed for the orbit sky", () => {
     const sky = computeSky({ year: 2021, month: 2, day: 18 });
     expect(sky.orbitBodies.map((b) => b.id).sort()).toEqual([
+      "deimos",
       "earth",
       "jupiter",
       "mercury",
+      "phobos",
       "saturn",
+      "sun",
       "venus",
     ]);
     const earth = sky.orbitBodies.find((b) => b.id === "earth");
@@ -119,6 +122,38 @@ describe("birthday sky", () => {
     expect(earth!.distAu).toBeGreaterThan(0.3);
     expect(earth!.distAu).toBeLessThan(2.7);
     expect(Math.abs(dot(earth!.fixed, sky.sunFixed))).toBeLessThan(0.99);
-    expect(sky.orbitBodies.some((b) => b.id === "sun" || b.id === "moon")).toBe(false);
+    const sun = sky.orbitBodies.find((b) => b.id === "sun");
+    expect(sun).toBeDefined();
+    expect(dot(sun!.fixed, sky.sunFixed)).toBeCloseTo(1, 5);
+    expect(sun!.distAu).toBeGreaterThan(1.3);
+    expect(sun!.distAu).toBeLessThan(1.7);
+    const phobos = sky.orbitBodies.find((b) => b.id === "phobos");
+    const deimos = sky.orbitBodies.find((b) => b.id === "deimos");
+    expect(phobos?.kind).toBe("satellite");
+    expect(deimos?.kind).toBe("satellite");
+    expect(phobos!.distAu).toBeLessThan(deimos!.distAu);
+    expect(sky.orbitBodies.some((b) => b.id === "moon")).toBe(false);
+    const vis = (id: string) => {
+      const body = sky.orbitBodies.find((x) => x.id === id)!;
+      return orbitSkyDistance(body.distAu, body.kind);
+    };
+    expect(vis("phobos")).toBeLessThan(vis("deimos"));
+    expect(vis("deimos")).toBeLessThan(vis("earth"));
+    expect(vis("earth")).toBeLessThan(vis("jupiter"));
+    expect(vis("sun")).toBeGreaterThan(vis("deimos"));
+  });
+
+  it("moves orbit-sky directions when the birthday changes", () => {
+    const a = computeSky({ year: 2021, month: 2, day: 18 });
+    const b = computeSky({ year: 1990, month: 7, day: 20 });
+    const earthA = a.orbitBodies.find((x) => x.id === "earth")!;
+    const earthB = b.orbitBodies.find((x) => x.id === "earth")!;
+    const jupA = a.orbitBodies.find((x) => x.id === "jupiter")!;
+    const jupB = b.orbitBodies.find((x) => x.id === "jupiter")!;
+    expect(dot(earthA.fixed, earthB.fixed)).toBeLessThan(0.97);
+    expect(dot(jupA.fixed, jupB.fixed)).toBeLessThan(0.995);
+    expect(Math.abs(earthA.distAu - earthB.distAu) + Math.abs(jupA.distAu - jupB.distAu)).toBeGreaterThan(
+      0.05,
+    );
   });
 });

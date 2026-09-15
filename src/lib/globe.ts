@@ -1,6 +1,6 @@
 import { JEZERO } from "./jezero";
 import type { Vec3 } from "./math";
-import { rad } from "./math";
+import { KM_PER_AU, normalize, rad } from "./math";
 
 /** Jezero as a unit vector in Mars body-fixed (IAU +X Airy-0, +Z north). */
 export function jezeroUnitFixed(): Vec3 {
@@ -50,8 +50,18 @@ export function yawToFaceCamera(v: Vec3): number {
  */
 export const ORBIT_FILL = 0.506;
 export const ORBIT_FOV_DEG = 36;
-/** Distance from Mars center to orbit-view planet markers (Mars radius = 1). */
-export const ORBIT_BODY_DISTANCE = 1.48;
+/**
+ * Compressed scene radii (Mars = 1) for Sun/planets in the orbit sky.
+ * Beyond a phone-portrait camera (~13) so they read as background objects,
+ * with log(AU) spacing so closer worlds sit inward of farther ones.
+ */
+export const ORBIT_SKY_NEAR = 18;
+export const ORBIT_SKY_FAR = 40;
+export const ORBIT_SKY_AU_MIN = 0.28;
+export const ORBIT_SKY_AU_MAX = 12;
+/** Phobos/Deimos shells, in Mars radii — close enough to pass near the globe. */
+export const ORBIT_MOON_NEAR = 2.35;
+export const ORBIT_MOON_FAR = 5.5;
 /** How far the camera can pitch off the equator before it locks (radians). */
 export const ORBIT_PITCH_MAX = 1.2;
 
@@ -120,28 +130,58 @@ export function rayHitsSphereBefore(origin: Vec3, target: Vec3, radius: number):
   return t > 1e-4 && t < len - 1e-4;
 }
 
+export type OrbitSkyKind = "sun" | "planet" | "earth" | "satellite";
+
+function clamp01(t: number): number {
+  return Math.min(1, Math.max(0, t));
+}
+
 /**
- * True when a planet marker sits in the sky around Mars — not behind the
- * globe, and not drawn over the disk like a surface feature.
+ * Readable scene distance for a Mars-centered body. Directions stay honest;
+ * AU (or moon km) are log-compressed onto shells so distant worlds stay in view.
  */
-export function orbitMarkerVisible(
+export function orbitSkyDistance(distAu: number, kind: OrbitSkyKind): number {
+  if (kind === "satellite") {
+    const r = (distAu * KM_PER_AU) / JEZERO.marsRadiusKm;
+    const t = clamp01(
+      Math.log(Math.max(r, 2.2) / 2.2) / Math.log(7.2 / 2.2),
+    );
+    return ORBIT_MOON_NEAR + (ORBIT_MOON_FAR - ORBIT_MOON_NEAR) * t;
+  }
+  const t = clamp01(
+    Math.log(Math.max(distAu, ORBIT_SKY_AU_MIN) / ORBIT_SKY_AU_MIN) /
+      Math.log(ORBIT_SKY_AU_MAX / ORBIT_SKY_AU_MIN),
+  );
+  return ORBIT_SKY_NEAR + (ORBIT_SKY_FAR - ORBIT_SKY_NEAR) * t;
+}
+
+/** Body-fixed direction placed on the compressed orbit-sky shell (Three.js axes). */
+export function orbitSkyPosition(fixed: Vec3, distAu: number, kind: OrbitSkyKind): Vec3 {
+  const dir = normalize(bodyFixedToThree(fixed));
+  const r = orbitSkyDistance(distAu, kind);
+  return { x: dir.x * r, y: dir.y * r, z: dir.z * r };
+}
+
+/**
+ * Apparent angular size (radians-ish scale vs camera distance).
+ * Closer shells read larger; the Sun and Earth stay a bit more present.
+ */
+export function orbitBodyAngularSize(kind: OrbitSkyKind, distAu: number): number {
+  if (kind === "satellite") return 0.0036;
+  if (kind === "sun") return 0.013;
+  if (kind === "earth") return 0.0082;
+  const r = orbitSkyDistance(distAu, kind);
+  const t = clamp01((r - ORBIT_SKY_NEAR) / (ORBIT_SKY_FAR - ORBIT_SKY_NEAR));
+  return 0.007 - 0.0032 * t;
+}
+
+/** True when Mars sits between the camera and a sky body. */
+export function orbitBodyOccluded(
   camera: Vec3,
-  marker: Vec3,
-  opts?: { globeRadius?: number; limbSlack?: number },
+  body: Vec3,
+  globeRadius = 1.02,
 ): boolean {
-  const globeRadius = opts?.globeRadius ?? 1.04;
-  const limbSlack = opts?.limbSlack ?? 0.9;
-  if (rayHitsSphereBefore(camera, marker, globeRadius)) return false;
-  const vx = marker.x - camera.x;
-  const vy = marker.y - camera.y;
-  const vz = marker.z - camera.z;
-  const vLen = Math.hypot(vx, vy, vz);
-  const camLen = Math.hypot(camera.x, camera.y, camera.z);
-  if (vLen < 1e-6 || camLen <= globeRadius) return false;
-  const cos = (-camera.x * vx - camera.y * vy - camera.z * vz) / (camLen * vLen);
-  const alpha = Math.acos(Math.min(1, Math.max(-1, cos)));
-  const marsAng = Math.asin(Math.min(1, globeRadius / camLen));
-  return alpha > marsAng * limbSlack;
+  return rayHitsSphereBefore(camera, body, globeRadius);
 }
 
 export const GLOBE_CREDIT = "NASA/JPL/USGS";
