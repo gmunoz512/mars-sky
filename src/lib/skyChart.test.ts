@@ -3,14 +3,6 @@ import { JEZERO } from "./jezero";
 import {
   clipSegmentToUnitCircle,
   dirToHorizon,
-  formatJezeroCoords,
-  formatPosterDate,
-  posterCaption,
-  posterLayout,
-  POSTER_HEADLINE,
-  POSTER_HEIGHT,
-  POSTER_PLACE,
-  POSTER_WIDTH,
   projectHorizon,
   starRadius,
 } from "./skyChart";
@@ -79,30 +71,7 @@ describe("unit-circle clipping", () => {
   });
 });
 
-describe("poster copy and layout", () => {
-  it("sets a Jezero birthday caption in the reference style", () => {
-    const cap = posterCaption({ year: 2020, month: 11, day: 3 });
-    expect(cap.headline).toBe(POSTER_HEADLINE);
-    expect(cap.date).toBe("NOVEMBER 3, 2020");
-    expect(cap.place).toBe(POSTER_PLACE);
-    expect(cap.coords).toBe(formatJezeroCoords());
-    expect(formatPosterDate({ year: 2021, month: 2, day: 18 })).toBe(
-      "FEBRUARY 18, 2021",
-    );
-    expect(cap.coords).toMatch(/18\.445°N \/ 77\.451°E/);
-    expect(JEZERO.latitudeDeg).toBeCloseTo(18.4446, 4);
-    expect(JEZERO.longitudeEastDeg).toBeCloseTo(77.4509, 4);
-  });
-
-  it("places the sky disc in the upper half with footer text below it", () => {
-    const layout = posterLayout(POSTER_WIDTH, POSTER_HEIGHT);
-    expect(layout.chartR).toBeGreaterThan(POSTER_WIDTH * 0.35);
-    expect(layout.cy + layout.chartR).toBeLessThan(layout.headlineY);
-    expect(layout.headlineY).toBeGreaterThan(POSTER_HEIGHT * 0.7);
-    expect(layout.coordsY).toBeLessThan(POSTER_HEIGHT - layout.inset);
-    expect(layout.cy).toBeLessThan(POSTER_HEIGHT * 0.45);
-  });
-
+describe("star scale", () => {
   it("makes brighter stars larger", () => {
     expect(starRadius(0, 480)).toBeGreaterThan(starRadius(4, 480));
     expect(starRadius(6, 480)).toBeLessThan(1);
@@ -124,5 +93,12 @@ describe("birthday sky on the chart", () => {
       const p = projectHorizon(earth.az, earth.alt);
       expect(p.x * p.x + p.y * p.y).toBeLessThanOrEqual(1 + 1e-9);
     }
+  });
+});
+
+describe("Jezero site", () => {
+  it("keeps the Perseverance coordinates used on the poster", () => {
+    expect(JEZERO.latitudeDeg).toBeCloseTo(18.4446, 4);
+    expect(JEZERO.longitudeEastDeg).toBeCloseTo(77.4509, 4);
   });
 });

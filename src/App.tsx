@@ -105,7 +105,7 @@ export default function App() {
         <div className="pointer-events-auto flex flex-col items-end gap-2">
           {onSurface && (
             <>
-              <ShareSky state={shareState} sky={sky} />
+              <ShareSky state={shareState} />
               <ScaleToggle value={scale} onChange={setScaleExplicit} disabled={busy} />
             </>
           )}

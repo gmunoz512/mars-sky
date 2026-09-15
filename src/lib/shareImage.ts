@@ -1,5 +1,5 @@
-import { renderSkyPoster } from "./skyChart";
-import type { CivilDate, SkyModel } from "./sky";
+import { renderSolarPoster } from "./solarPoster";
+import type { CivilDate } from "./sky";
 import { formatIsoDate } from "./share";
 
 export function shareImageFilename(date: CivilDate): string {
@@ -11,24 +11,21 @@ async function waitForShareFonts(): Promise<void> {
   try {
     await Promise.race([
       Promise.all([
-        document.fonts.load("400 18px Outfit"),
-        document.fonts.load("400 15px Outfit"),
+        document.fonts.load("400 22px Fraunces"),
+        document.fonts.load("italic 400 18px Fraunces"),
       ]),
       new Promise<void>((resolve) => {
         window.setTimeout(resolve, 700);
       }),
     ]);
   } catch {
-    /* fall back to Helvetica / system-ui */
+    /* fall back to Times / system serif */
   }
 }
 
-export async function composeShareImage(
-  sky: SkyModel,
-  date: CivilDate,
-): Promise<HTMLCanvasElement> {
+export async function composeShareImage(date: CivilDate): Promise<HTMLCanvasElement> {
   await waitForShareFonts();
-  return renderSkyPoster(sky, date);
+  return renderSolarPoster(date);
 }
 
 export function canvasToJpegBlob(canvas: HTMLCanvasElement, quality = 0.93): Promise<Blob> {
