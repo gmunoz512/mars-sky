@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   GLOBE_CREDIT,
   GLOBE_SOURCES,
+  ORBIT_BODY_DISTANCE,
   ORBIT_FOV_DEG,
   PORTRAIT_FACE,
   VALLES_MARINERIS,
@@ -10,8 +11,10 @@ import {
   narrowerFovDeg,
   orbitCameraDir,
   orbitCameraDistance,
+  orbitMarkerVisible,
   polarCapExtents,
   portraitFaceUnitFixed,
+  rayHitsSphereBefore,
   sphereAngularDiameterDeg,
   yawToFaceCamera,
 } from "./globe";
@@ -31,6 +34,7 @@ describe("orbitCameraDistance", () => {
     const ang = sphereAngularDiameterDeg(d);
     const narrow = narrowerFovDeg(phone, ORBIT_FOV_DEG);
     expect(d).toBeGreaterThan(10);
+    expect(ORBIT_FILL).toBeCloseTo(0.44 * 1.15, 3);
     expect(ORBIT_FILL).toBeLessThan(0.55);
     expect(ang).toBeLessThan(narrow * 0.56);
     expect(ang).toBeGreaterThan(narrow * 0.28);
@@ -45,6 +49,16 @@ describe("orbitCameraDistance", () => {
     const narrow = narrowerFovDeg(wide, ORBIT_FOV_DEG);
     expect(ang).toBeLessThan(narrow * 0.56);
     expect(d).toBeGreaterThan(5);
+  });
+
+  it("frames Mars about 15% larger than the previous 0.44 fill", () => {
+    const wide = 1440 / 900;
+    const now = sphereAngularDiameterDeg(orbitCameraDistance(wide, ORBIT_FOV_DEG));
+    const previous = sphereAngularDiameterDeg(
+      orbitCameraDistance(wide, ORBIT_FOV_DEG, { fill: 0.44 }),
+    );
+    expect(now / previous).toBeGreaterThan(1.12);
+    expect(now / previous).toBeLessThan(1.2);
   });
 });
 
@@ -64,6 +78,25 @@ describe("portrait face", () => {
   it("keeps Tharsis west of Valles so the canyon stays on camera", () => {
     expect(PORTRAIT_FACE.longitudeEastDeg).toBeLessThan(VALLES_MARINERIS.longitudeEastDeg);
     expect(Number.isFinite(yawToFaceCamera(portraitFaceUnitFixed()))).toBe(true);
+  });
+});
+
+describe("orbit planet markers", () => {
+  const camera = { x: 0, y: 0, z: 10 };
+
+  it("sits just outside the atmosphere, not on the mosaic", () => {
+    expect(ORBIT_BODY_DISTANCE).toBeGreaterThan(1.05);
+    expect(ORBIT_BODY_DISTANCE).toBeLessThan(2);
+  });
+
+  it("hides a marker behind the globe and one drawn over the disk", () => {
+    expect(rayHitsSphereBefore(camera, { x: 0, y: 0, z: -1.48 }, 1.04)).toBe(true);
+    expect(orbitMarkerVisible(camera, { x: 0, y: 0, z: -1.48 })).toBe(false);
+    expect(orbitMarkerVisible(camera, { x: 0, y: 0, z: 1.48 })).toBe(false);
+  });
+
+  it("keeps a marker that has risen around the limb", () => {
+    expect(orbitMarkerVisible(camera, { x: 1.48, y: 0, z: 0 })).toBe(true);
   });
 });
 

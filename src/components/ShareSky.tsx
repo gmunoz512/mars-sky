@@ -12,15 +12,13 @@ import {
   downloadBlob,
   shareImageFilename,
 } from "../lib/shareImage";
-import type { SkyModel } from "../lib/sky";
 import { outlineControlClass } from "./outlineControl";
 
 type Props = {
   state: ShareState;
-  sky: SkyModel;
 };
 
-export function ShareSky({ state, sky }: Props) {
+export function ShareSky({ state }: Props) {
   const [open, setOpen] = useState(false);
   const [status, setStatus] = useState<"idle" | "copied" | "saved" | "shared">("idle");
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
@@ -76,7 +74,7 @@ export function ShareSky({ state, sky }: Props) {
     void (async () => {
       try {
         if (cancelled) return;
-        const poster = await composeShareImage(sky, state.date);
+        const poster = await composeShareImage(state.date);
         const blob = await canvasToJpegBlob(poster);
         objectUrl = URL.createObjectURL(blob);
         if (cancelled) {
@@ -90,7 +88,7 @@ export function ShareSky({ state, sky }: Props) {
         if (!cancelled) {
           blobRef.current = null;
           setPreviewUrl(null);
-          setImageError("Could not draw the sky chart. You can still copy the link.");
+          setImageError("Could not draw the poster. You can still copy the link.");
         }
       } finally {
         if (!cancelled) setBuilding(false);
@@ -101,7 +99,7 @@ export function ShareSky({ state, sky }: Props) {
       cancelled = true;
       if (objectUrl) URL.revokeObjectURL(objectUrl);
     };
-  }, [open, sky, state.date]);
+  }, [open, state.date]);
 
   const onCopy = async () => {
     try {
@@ -144,22 +142,22 @@ export function ShareSky({ state, sky }: Props) {
         <div
           role="dialog"
           aria-labelledby={titleId}
-          className="absolute right-0 top-[calc(100%+0.75rem)] z-20 w-[min(21rem,calc(100vw-2.5rem))] border border-ink/20 bg-dusk/95 p-4 shadow-[0_12px_40px_rgba(0,0,0,0.45)] backdrop-blur-sm"
+          className="absolute right-0 top-[calc(100%+0.75rem)] z-20 w-[min(24rem,calc(100vw-2.5rem))] border border-ink/20 bg-dusk/95 p-4 shadow-[0_12px_40px_rgba(0,0,0,0.45)] backdrop-blur-sm"
         >
           <p id={titleId} className="font-serif text-lg leading-snug tracking-tight text-ink">
             {copy.title}
           </p>
           <p className="mt-1 text-[13px] text-ink/80">{formatShareHeadline(state.date)}</p>
           <p className="mt-2 text-[10px] font-medium uppercase tracking-[0.22em] text-mute">
-            Jezero midnight sky · save to photos
+            Jezero · solar system · save to photos
           </p>
 
           <div className="mt-3 overflow-hidden border border-ink/15 bg-black">
             {previewUrl ? (
               <img
                 src={previewUrl}
-                alt={`Whole-sky chart over Jezero on ${formatShareHeadline(state.date)}`}
-                className="mx-auto block max-h-72 w-full bg-black object-contain"
+                alt={`Solar system on ${formatShareHeadline(state.date)} from Jezero crater`}
+                className="mx-auto block max-h-80 w-full bg-black object-contain"
               />
             ) : (
               <div className="flex h-44 items-center justify-center px-4 text-center text-[11px] leading-relaxed text-mute">

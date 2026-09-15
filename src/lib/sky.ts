@@ -12,7 +12,7 @@ import {
   marsBodyFixedFromEqj,
   type Horizon,
 } from "./marsFrame";
-import { type Vec3, hypot3, normalize, raDecToEqj } from "./math";
+import { type Vec3, hypot3, mulVec, normalize, raDecToEqj } from "./math";
 import { findJezeroMidnight } from "./midnight";
 import { marsMoonsEqjKm } from "./moons";
 import { jezeroSeason, marsSolarLongitude } from "./season";
@@ -38,6 +38,20 @@ export type SkyBody = SkyPoint & {
   color: string;
 };
 
+/** Mars-centered companion for the orbit globe (body-fixed, not Jezero-horizon). */
+export type OrbitBody = {
+  id: string;
+  name: string;
+  kind: "planet" | "earth";
+  color: string;
+  /** Unit vector toward the body in Mars IAU body-fixed. */
+  fixed: Vec3;
+  distAu: number;
+};
+
+/** Naked-eye planets called out around the orbit globe. */
+export const ORBIT_PLANET_IDS = ["mercury", "venus", "earth", "jupiter", "saturn"] as const;
+
 export type SkyLabel = SkyPoint & {
   text: string;
   kind: "constellation" | "star" | "body" | "earth" | "moon";
@@ -55,6 +69,8 @@ export type SkyModel = {
   sun: SkyBody | null;
   /** Unit vector toward the Sun in Mars body-fixed (IAU +X Airy-0, +Z north). */
   sunFixed: Vec3;
+  /** Planets as seen from Mars, for the orbit globe. */
+  orbitBodies: OrbitBody[];
 };
 
 const PLANETS: { body: Body; id: string; name: string; kind: SkyBody["kind"]; color: string }[] =
@@ -176,10 +192,22 @@ export function computeSky(date: CivilDate): SkyModel {
   }
 
   const bodies: SkyBody[] = [];
+  const orbitBodies: OrbitBody[] = [];
   let sun: SkyBody | null = null;
+  const orbitIds: ReadonlySet<string> = new Set(ORBIT_PLANET_IDS);
 
   for (const spec of PLANETS) {
     const eqjAu = marsCenteredEqjAu(spec.body, time);
+    if (orbitIds.has(spec.id) && (spec.kind === "earth" || spec.kind === "planet")) {
+      orbitBodies.push({
+        id: spec.id,
+        name: spec.name,
+        kind: spec.kind,
+        color: spec.color,
+        fixed: normalize(mulVec(frame.eqjToFixed, eqjAu)),
+        distAu: hypot3(eqjAu),
+      });
+    }
     const h = eqjToHorizon(eqjAu, frame.eqjToFixed);
     if (h.altitudeDeg < 0 && spec.kind !== "sun") continue;
     const point = fromHorizon(h);
@@ -229,6 +257,7 @@ export function computeSky(date: CivilDate): SkyModel {
     bodies,
     sun,
     sunFixed,
+    orbitBodies,
   };
 }
 

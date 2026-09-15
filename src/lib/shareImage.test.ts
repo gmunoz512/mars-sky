@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { shareImageFilename } from "./shareImage";
-import { posterCaption } from "./skyChart";
+import { posterCaption } from "./solarPoster";
 
 describe("share image", () => {
   it("names the JPEG for a camera roll", () => {
@@ -9,10 +9,11 @@ describe("share image", () => {
     );
   });
 
-  it("uses the whole-sky poster caption, not a live-view label", () => {
+  it("uses the solar-system poster caption, not a live-view label", () => {
     const cap = posterCaption({ year: 2024, month: 3, day: 18 });
-    expect(cap.headline).toBe("BIRTHDAY OVER JEZERO");
+    expect(cap.headline[0]).toBe("JUST A SMALL PART");
     expect(cap.date).toBe("MARCH 18, 2024");
     expect(cap.place).toBe("JEZERO CRATER, MARS");
+    expect(cap.coords).toBe("18.445°N / 77.451°E");
   });
 });
