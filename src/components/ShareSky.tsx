@@ -163,7 +163,7 @@ export function ShareSky({ state, capture }: Props) {
               <img
                 src={previewUrl}
                 alt={`Mars ${state.view === "surface" ? "sky" : "from orbit"} on ${formatShareHeadline(state.date)}`}
-                className="block max-h-52 w-full object-cover object-center"
+                className="mx-auto block max-h-52 w-full object-contain"
               />
             ) : (
               <div className="flex h-36 items-center justify-center px-4 text-center text-[11px] leading-relaxed text-mute">
