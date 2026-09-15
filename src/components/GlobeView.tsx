@@ -85,6 +85,22 @@ const ORBIT_ALBEDO: Record<string, string> = {
   deimos: deimosMapUrl,
 };
 
+function makeSunGlowTexture(): THREE.CanvasTexture {
+  const c = document.createElement("canvas");
+  c.width = c.height = 128;
+  const g = c.getContext("2d")!;
+  const grd = g.createRadialGradient(64, 64, 6, 64, 64, 64);
+  grd.addColorStop(0, "rgba(255, 228, 160, 0.95)");
+  grd.addColorStop(0.22, "rgba(244, 180, 70, 0.45)");
+  grd.addColorStop(0.55, "rgba(210, 120, 40, 0.12)");
+  grd.addColorStop(1, "rgba(0, 0, 0, 0)");
+  g.fillStyle = grd;
+  g.fillRect(0, 0, 128, 128);
+  const tex = new THREE.CanvasTexture(c);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  return tex;
+}
+
 function makeSaturnRingGeometry(): THREE.RingGeometry {
   const geo = new THREE.RingGeometry(SATURN_RING_INNER, SATURN_RING_OUTER, 96, 5);
   const pos = geo.attributes.position!;
@@ -288,13 +304,14 @@ export function GlobeView({ ls, sunFixed, orbitBodies, approach, className, onEn
       extras: THREE.Material[];
       extraGeos: THREE.BufferGeometry[];
       sunUniform: THREE.IUniform | null;
-      atmosOpacity: THREE.IUniform | null;
+      fadeUniforms: { value: number }[];
       haloMat: THREE.MeshBasicMaterial | null;
       ringMat: THREE.MeshStandardMaterial | null;
       label: HTMLDivElement;
     };
     const planetGeo = new THREE.SphereGeometry(1, 48, 32);
     const ringGeo = makeSaturnRingGeometry();
+    const sunGlowTex = makeSunGlowTexture();
     const albedoById = new Map<string, THREE.Texture>();
     let ringTex: THREE.Texture | null = null;
     const skyMarkers = new Map<string, SkyMarker>();
@@ -431,44 +448,39 @@ export function GlobeView({ ls, sunFixed, orbitBodies, approach, className, onEn
           group.add(globe);
 
           let sunUniform: THREE.IUniform | null = null;
-          let atmosOpacity: THREE.IUniform | null = null;
+          const fadeUniforms: { value: number }[] = [];
           let haloMat: THREE.MeshBasicMaterial | null = null;
           let ringMat: THREE.MeshStandardMaterial | null = null;
 
           if (look.atmos === "sun") {
-            const corona = makeAtmos(0xf4d59a, 1.65, 0.7);
-            corona.mesh.scale.setScalar(1.42);
-            group.add(corona.mesh);
-            extras.push(corona.mat);
-            sunUniform = corona.mat.uniforms.uSun!;
-            atmosOpacity = corona.mat.uniforms.uOpacity!;
-            haloMat = new THREE.MeshBasicMaterial({
-              color: 0xf6d7a0,
+            const glowMat = new THREE.SpriteMaterial({
+              map: sunGlowTex,
+              color: 0xffffff,
               transparent: true,
-              opacity: 0.2,
               depthWrite: false,
               depthTest: true,
               blending: THREE.AdditiveBlending,
+              opacity: 0.9,
             });
-            const halo = new THREE.Mesh(planetGeo, haloMat);
-            halo.scale.setScalar(2.15);
-            halo.layers.set(SKY_LAYER);
-            group.add(halo);
-            extras.push(haloMat);
+            const glow = new THREE.Sprite(glowMat);
+            glow.scale.setScalar(3.4);
+            glow.layers.set(SKY_LAYER);
+            group.add(glow);
+            extras.push(glowMat);
           } else if (look.atmos === "earth") {
             const haze = makeAtmos(0x7eb7e8, 2.8, 0.55);
             haze.mesh.scale.setScalar(1.075);
             group.add(haze.mesh);
             extras.push(haze.mat);
             sunUniform = haze.mat.uniforms.uSun!;
-            atmosOpacity = haze.mat.uniforms.uOpacity!;
+            fadeUniforms.push(haze.mat.uniforms.uOpacity!);
           } else if (look.atmos === "venus") {
             const haze = makeAtmos(0xf0d9b0, 3.2, 0.32);
             haze.mesh.scale.setScalar(1.05);
             group.add(haze.mesh);
             extras.push(haze.mat);
             sunUniform = haze.mat.uniforms.uSun!;
-            atmosOpacity = haze.mat.uniforms.uOpacity!;
+            fadeUniforms.push(haze.mat.uniforms.uOpacity!);
           }
 
           if (look.rings) {
@@ -509,7 +521,7 @@ export function GlobeView({ ls, sunFixed, orbitBodies, approach, className, onEn
             extras,
             extraGeos,
             sunUniform,
-            atmosOpacity,
+            fadeUniforms,
             haloMat,
             ringMat,
             label: el,
@@ -537,7 +549,6 @@ export function GlobeView({ ls, sunFixed, orbitBodies, approach, className, onEn
     };
 
     const placeSkyMarkers = (approachAmt: number) => {
-      const pulse = 0.28 + 0.16 * Math.sin(performance.now() * 0.0024);
       const w = host.clientWidth;
       const h = host.clientHeight;
       const camV = { x: camera.position.x, y: camera.position.y, z: camera.position.z };
@@ -556,10 +567,14 @@ export function GlobeView({ ls, sunFixed, orbitBodies, approach, className, onEn
           marker.group.quaternion.set(q.x, q.y, q.z, q.w);
         }
         marker.globeMat.opacity = fade;
-        if (marker.haloMat) marker.haloMat.opacity = (0.16 + 0.08 * pulse) * fade;
-        if (marker.atmosOpacity) {
-          const base = marker.kind === "sun" ? 0.7 : marker.id === "earth" ? 0.55 : 0.32;
-          marker.atmosOpacity.value = base * fade;
+        if (marker.kind === "sun") {
+          for (const mat of marker.extras) {
+            if (mat instanceof THREE.SpriteMaterial) mat.opacity = 0.9 * fade;
+          }
+        } else if (marker.id === "earth" && marker.fadeUniforms[0]) {
+          marker.fadeUniforms[0].value = 0.55 * fade;
+        } else if (marker.fadeUniforms[0]) {
+          marker.fadeUniforms[0].value = 0.32 * fade;
         }
         if (marker.sunUniform) marker.sunUniform.value.copy(skySunDir);
 
@@ -589,7 +604,7 @@ export function GlobeView({ ls, sunFixed, orbitBodies, approach, className, onEn
         item.marker.label.style.opacity =
           item.marker.kind === "earth" || item.marker.kind === "sun" ? "1" : "0.88";
         const lift =
-          item.marker.kind === "earth" ? -160 : item.marker.kind === "sun" ? -155 : -130;
+          item.marker.kind === "earth" ? -175 : item.marker.kind === "sun" ? -210 : -145;
         item.marker.label.style.transform = `translate(-50%, ${lift}%) translate(${(item.ndcX * 0.5 + 0.5) * w}px, ${(-item.ndcY * 0.5 + 0.5) * h}px)`;
         placed.push({ rank: item.marker.rank, ndcX: item.ndcX, ndcY: item.ndcY });
       }
@@ -782,6 +797,7 @@ export function GlobeView({ ls, sunFixed, orbitBodies, approach, className, onEn
       skyMarkers.clear();
       planetGeo.dispose();
       ringGeo.dispose();
+      sunGlowTex.dispose();
       for (const tex of albedoById.values()) tex.dispose();
       ringTex?.dispose();
       starGeo.dispose();
