@@ -344,7 +344,7 @@ export function GlobeView({ ls, sunFixed, orbitBodies, approach, className, onEn
         worldMarker.copy(marker.core.position).applyMatrix4(celestialGroup.matrixWorld);
         const dist = camera.position.distanceTo(worldMarker);
         const ang = orbitBodyAngularSize(marker.kind, marker.distAu);
-        const coreR = Math.max(0.035, dist * ang);
+        const coreR = Math.max(marker.kind === "satellite" ? 0.018 : 0.035, dist * ang);
         const haloMul = marker.kind === "sun" ? 2.7 : marker.kind === "earth" ? 2.35 : 2.15;
         marker.core.scale.setScalar(coreR);
         marker.halo.scale.setScalar(coreR * haloMul);

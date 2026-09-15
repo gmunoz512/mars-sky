@@ -167,7 +167,7 @@ export function orbitSkyPosition(fixed: Vec3, distAu: number, kind: OrbitSkyKind
  * Closer shells read larger; the Sun and Earth stay a bit more present.
  */
 export function orbitBodyAngularSize(kind: OrbitSkyKind, distAu: number): number {
-  if (kind === "satellite") return 0.0078;
+  if (kind === "satellite") return 0.0036;
   if (kind === "sun") return 0.013;
   if (kind === "earth") return 0.0082;
   const r = orbitSkyDistance(distAu, kind);
