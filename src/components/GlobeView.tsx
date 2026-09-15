@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, type MutableRefObject } from "react";
 import * as THREE from "three";
 import albedoUrl from "../assets/mars/mars-albedo.jpg";
 import bumpUrl from "../assets/mars/mars-bump.jpg";
@@ -16,6 +16,7 @@ import {
 import { fitRendererToHost } from "../lib/renderer";
 import { JEZERO } from "../lib/jezero";
 import type { Vec3 } from "../lib/math";
+import type { CaptureFrame } from "../lib/shareImage";
 
 type Props = {
   ls: number;
@@ -23,6 +24,7 @@ type Props = {
   approach: number;
   className?: string;
   onEnterSurface: () => void;
+  captureRef?: MutableRefObject<CaptureFrame | null>;
 };
 
 const ATMOS_VERT = `
@@ -53,9 +55,11 @@ void main() {
 }
 `;
 
-export function GlobeView({ ls, sunFixed, approach, className, onEnterSurface }: Props) {
+export function GlobeView({ ls, sunFixed, approach, className, onEnterSurface, captureRef }: Props) {
   const hostRef = useRef<HTMLDivElement>(null);
   const overlayRef = useRef<HTMLDivElement>(null);
+  const captureTarget = useRef(captureRef);
+  captureTarget.current = captureRef;
   const sunRef = useRef(sunFixed);
   const approachRef = useRef(approach);
   const onEnterRef = useRef(onEnterSurface);
@@ -72,7 +76,11 @@ export function GlobeView({ ls, sunFixed, approach, className, onEnterSurface }:
     const overlay = overlayRef.current;
     if (!host || !overlay) return;
 
-    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
+    const renderer = new THREE.WebGLRenderer({
+      antialias: true,
+      alpha: false,
+      preserveDrawingBuffer: true,
+    });
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     renderer.setClearColor(0x07060a, 1);
     renderer.outputColorSpace = THREE.SRGBColorSpace;
@@ -326,7 +334,7 @@ export function GlobeView({ ls, sunFixed, approach, className, onEnterSurface }:
     const jezeroLook = new THREE.Vector3();
     const PORTRAIT_EL = 0.16;
 
-    const tick = () => {
+    const paint = () => {
       const a = approachRef.current;
       if (a > 0.08) {
         targetAz.current += (0 - targetAz.current) * 0.06;
@@ -357,11 +365,24 @@ export function GlobeView({ ls, sunFixed, approach, className, onEnterSurface }:
       applySun(a);
       placeLabel();
       renderer.render(scene, camera);
+    };
+
+    const tick = () => {
+      paint();
       raf = requestAnimationFrame(tick);
     };
     raf = requestAnimationFrame(tick);
 
+    const capture: CaptureFrame = () => {
+      paint();
+      const canvas = renderer.domElement;
+      if (canvas.width < 2 || canvas.height < 2) return null;
+      return canvas;
+    };
+    if (captureTarget.current) captureTarget.current.current = capture;
+
     return () => {
+      if (captureTarget.current) captureTarget.current.current = null;
       cancelAnimationFrame(raf);
       ro.disconnect();
       host.removeEventListener("pointerdown", onDown);

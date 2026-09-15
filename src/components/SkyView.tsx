@@ -1,9 +1,10 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, type MutableRefObject } from "react";
 import * as THREE from "three";
 import groundUrl from "../assets/mars/jezero-ground.jpg";
 import horizonUrl from "../assets/mars/jezero-horizon.jpg";
 import type { SkyLabel, SkyModel, SkyStar } from "../lib/sky";
 import { fitRendererToHost } from "../lib/renderer";
+import type { CaptureFrame } from "../lib/shareImage";
 import {
   HORIZON_EYE_Y,
   HORIZON_HEIGHT,
@@ -26,6 +27,7 @@ type Props = {
   mode: Mode;
   className?: string;
   lookAt?: SkyLookAt | null;
+  captureRef?: MutableRefObject<CaptureFrame | null>;
 };
 
 type LabelEl = {
@@ -79,11 +81,13 @@ function fillStarGeometry(stars: SkyStar[]): THREE.BufferGeometry {
   return geo;
 }
 
-export function SkyView({ sky, mode, className, lookAt }: Props) {
+export function SkyView({ sky, mode, className, lookAt, captureRef }: Props) {
   const hostRef = useRef<HTMLDivElement>(null);
   const overlayRef = useRef<HTMLDivElement>(null);
   const applyRef = useRef<(model: SkyModel) => void>(() => undefined);
   const lookRef = useRef<(target: SkyLookAt) => void>(() => undefined);
+  const captureTarget = useRef(captureRef);
+  captureTarget.current = captureRef;
   const modeRef = useRef(mode);
   modeRef.current = mode;
 
@@ -92,7 +96,11 @@ export function SkyView({ sky, mode, className, lookAt }: Props) {
     const overlay = overlayRef.current;
     if (!host || !overlay) return;
 
-    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
+    const renderer = new THREE.WebGLRenderer({
+      antialias: true,
+      alpha: false,
+      preserveDrawingBuffer: true,
+    });
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     renderer.setClearColor(0x07060a, 1);
     host.appendChild(renderer.domElement);
@@ -385,6 +393,12 @@ export function SkyView({ sky, mode, className, lookAt }: Props) {
       typeof window.matchMedia === "function" &&
       window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
+    const paint = () => {
+      look();
+      placeLabels();
+      renderer.render(scene, camera);
+    };
+
     const tick = (now: number) => {
       const dt = Math.min(0.05, (now - last) / 1000);
       last = now;
@@ -393,15 +407,22 @@ export function SkyView({ sky, mode, className, lookAt }: Props) {
       }
       yaw.current += (targetYaw.current - yaw.current) * 0.12;
       pitch.current += (targetPitch.current - pitch.current) * 0.12;
-      look();
-      placeLabels();
-      renderer.render(scene, camera);
+      paint();
       raf = requestAnimationFrame(tick);
     };
     raf = requestAnimationFrame(tick);
 
+    const capture: CaptureFrame = () => {
+      paint();
+      const canvas = renderer.domElement;
+      if (canvas.width < 2 || canvas.height < 2) return null;
+      return canvas;
+    };
+    if (captureTarget.current) captureTarget.current.current = capture;
+
     return () => {
       cancelled = true;
+      if (captureTarget.current) captureTarget.current.current = null;
       photo.dispose();
       cancelAnimationFrame(raf);
       ro.disconnect();

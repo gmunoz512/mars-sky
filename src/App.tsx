@@ -1,11 +1,10 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { DatePicker } from "./components/DatePicker";
 import { GlobeView } from "./components/GlobeView";
 import { ScaleToggle } from "./components/ScaleToggle";
 import { ShareSky } from "./components/ShareSky";
 import { SkyCallouts, type SkyLookTarget } from "./components/SkyCallouts";
 import { SkyView, type SkyLookAt } from "./components/SkyView";
-import { SolClock } from "./components/SolClock";
 import { useScale } from "./components/useScale";
 import { JEZERO } from "./lib/jezero";
 import {
@@ -15,6 +14,7 @@ import {
   isDefaultShare,
   parseShareSearch,
 } from "./lib/share";
+import { capturePreferredView, type CaptureFrame } from "./lib/shareImage";
 import { computeSky } from "./lib/sky";
 
 const boot =
@@ -25,11 +25,19 @@ const boot =
 export default function App() {
   const [date, setDate] = useState(boot.date);
   const [lookAt, setLookAt] = useState<SkyLookAt | null>(null);
+  const skyCaptureRef = useRef<CaptureFrame | null>(null);
+  const globeCaptureRef = useRef<CaptureFrame | null>(null);
   const sky = useMemo(() => computeSky(date), [date]);
   const { scale, approach, busy, goSurface, goOrbit, setScaleExplicit } = useScale(boot.view);
   const onSurface = scale === "surface";
   const showSky = onSurface || approach > 0.62;
   const shareState = { date, view: onSurface ? ("surface" as const) : ("orbit" as const) };
+  const preferSkyRef = useRef(showSky);
+  preferSkyRef.current = showSky;
+  const capture = useCallback(
+    () => capturePreferredView(preferSkyRef.current, skyCaptureRef.current, globeCaptureRef.current),
+    [],
+  );
   const earth = sky.bodies.find((b) => b.kind === "earth") ?? null;
   const moons = sky.bodies.filter((b) => b.kind === "satellite");
 
@@ -76,6 +84,7 @@ export default function App() {
           approach={approach}
           className="h-full w-full"
           onEnterSurface={goSurface}
+          captureRef={globeCaptureRef}
         />
       </div>
 
@@ -85,7 +94,13 @@ export default function App() {
             onSurface ? "opacity-100" : "pointer-events-none opacity-0"
           }`}
         >
-          <SkyView sky={sky} mode="look" lookAt={lookAt} className="h-full w-full" />
+          <SkyView
+            sky={sky}
+            mode="look"
+            lookAt={lookAt}
+            className="h-full w-full"
+            captureRef={skyCaptureRef}
+          />
         </div>
       )}
 
@@ -97,14 +112,11 @@ export default function App() {
           </p>
           {onSurface && <SkyCallouts earth={earth} moons={moons} onLook={onLook} />}
         </div>
-        <div className="pointer-events-auto flex items-start gap-4 sm:gap-5">
-          <SolClock sky={sky} />
-          <div className="flex flex-col items-end gap-2">
-            <ShareSky state={shareState} />
-            {onSurface && (
-              <ScaleToggle value={scale} onChange={setScaleExplicit} disabled={busy} />
-            )}
-          </div>
+        <div className="pointer-events-auto flex flex-col items-end gap-2">
+          <ShareSky state={shareState} capture={capture} />
+          {onSurface && (
+            <ScaleToggle value={scale} onChange={setScaleExplicit} disabled={busy} />
+          )}
         </div>
       </header>
 
