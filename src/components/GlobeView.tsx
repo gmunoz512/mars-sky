@@ -301,9 +301,16 @@ export function GlobeView({ ls, sunFixed, orbitBodies, approach, className, onEn
       const w = host.clientWidth;
       const h = host.clientHeight;
       const camV = { x: camera.position.x, y: camera.position.y, z: camera.position.z };
+      const placed: { earth: boolean; ndcX: number; ndcY: number }[] = [];
+      const queue: {
+        marker: PlanetMarker;
+        ndcX: number;
+        ndcY: number;
+        show: boolean;
+      }[] = [];
       for (const marker of planetMarkers.values()) {
-        const coreR = (marker.earth ? 0.0078 : 0.0044) * camLen;
-        const haloR = (marker.earth ? 0.022 : 0.011) * camLen;
+        const coreR = (marker.earth ? 0.0056 : 0.0038) * camLen;
+        const haloR = (marker.earth ? 0.013 : 0.008) * camLen;
         marker.core.scale.setScalar(coreR);
         marker.halo.scale.setScalar(haloR);
         if (marker.earth) marker.haloMat.opacity = pulse;
@@ -319,11 +326,22 @@ export function GlobeView({ ls, sunFixed, orbitBodies, approach, className, onEn
         const show = around && inFrame && approachAmt < 0.42;
         marker.core.visible = show;
         marker.halo.visible = show;
-        marker.label.style.display = show ? "block" : "none";
-        if (!show) continue;
-        const lift = marker.earth ? -160 : -130;
-        marker.label.style.transform = `translate(-50%, ${lift}%) translate(${(ndc.x * 0.5 + 0.5) * w}px, ${(-ndc.y * 0.5 + 0.5) * h}px)`;
-        marker.label.style.opacity = marker.earth ? "1" : "0.88";
+        marker.label.style.display = "none";
+        if (show) queue.push({ marker, ndcX: ndc.x, ndcY: ndc.y, show });
+      }
+      queue.sort((a, b) => Number(b.marker.earth) - Number(a.marker.earth));
+      for (const item of queue) {
+        const crowded = placed.some((p) => {
+          const dx = p.ndcX - item.ndcX;
+          const dy = p.ndcY - item.ndcY;
+          return dx * dx + dy * dy < 0.016;
+        });
+        if (crowded && !item.marker.earth) continue;
+        item.marker.label.style.display = "block";
+        item.marker.label.style.opacity = item.marker.earth ? "1" : "0.88";
+        const lift = item.marker.earth ? -160 : -130;
+        item.marker.label.style.transform = `translate(-50%, ${lift}%) translate(${(item.ndcX * 0.5 + 0.5) * w}px, ${(-item.ndcY * 0.5 + 0.5) * h}px)`;
+        placed.push({ earth: item.marker.earth, ndcX: item.ndcX, ndcY: item.ndcY });
       }
     };
 
