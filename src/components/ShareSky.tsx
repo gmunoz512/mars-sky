@@ -11,15 +11,15 @@ import {
   composeShareImage,
   downloadBlob,
   shareImageFilename,
-  type CaptureFrame,
 } from "../lib/shareImage";
+import type { SkyModel } from "../lib/sky";
 
 type Props = {
   state: ShareState;
-  capture: CaptureFrame;
+  sky: SkyModel;
 };
 
-export function ShareSky({ state, capture }: Props) {
+export function ShareSky({ state, sky }: Props) {
   const [open, setOpen] = useState(false);
   const [status, setStatus] = useState<"idle" | "copied" | "saved" | "shared">("idle");
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
@@ -74,14 +74,9 @@ export function ShareSky({ state, capture }: Props) {
 
     void (async () => {
       try {
-        await new Promise<void>((resolve) => {
-          requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
-        });
         if (cancelled) return;
-        const frame = capture();
-        if (!frame) throw new Error("missing frame");
-        const branded = await composeShareImage(frame, state);
-        const blob = await canvasToJpegBlob(branded);
+        const poster = await composeShareImage(sky, state.date);
+        const blob = await canvasToJpegBlob(poster);
         objectUrl = URL.createObjectURL(blob);
         if (cancelled) {
           URL.revokeObjectURL(objectUrl);
@@ -94,7 +89,7 @@ export function ShareSky({ state, capture }: Props) {
         if (!cancelled) {
           blobRef.current = null;
           setPreviewUrl(null);
-          setImageError("Could not capture the sky. You can still copy the link.");
+          setImageError("Could not draw the sky chart. You can still copy the link.");
         }
       } finally {
         if (!cancelled) setBuilding(false);
@@ -105,7 +100,7 @@ export function ShareSky({ state, capture }: Props) {
       cancelled = true;
       if (objectUrl) URL.revokeObjectURL(objectUrl);
     };
-  }, [open, state.date.year, state.date.month, state.date.day, state.view, capture]);
+  }, [open, sky, state.date]);
 
   const onCopy = async () => {
     try {
@@ -148,26 +143,26 @@ export function ShareSky({ state, capture }: Props) {
         <div
           role="dialog"
           aria-labelledby={titleId}
-          className="absolute right-0 top-[calc(100%+0.75rem)] z-20 w-[min(19.5rem,calc(100vw-2.5rem))] border border-ink/20 bg-dusk/95 p-4 shadow-[0_12px_40px_rgba(0,0,0,0.45)] backdrop-blur-sm"
+          className="absolute right-0 top-[calc(100%+0.75rem)] z-20 w-[min(21rem,calc(100vw-2.5rem))] border border-ink/20 bg-dusk/95 p-4 shadow-[0_12px_40px_rgba(0,0,0,0.45)] backdrop-blur-sm"
         >
           <p id={titleId} className="font-serif text-lg leading-snug tracking-tight text-ink">
             {copy.title}
           </p>
           <p className="mt-1 text-[13px] text-ink/80">{formatShareHeadline(state.date)}</p>
           <p className="mt-2 text-[10px] font-medium uppercase tracking-[0.22em] text-mute">
-            {state.view === "surface" ? "Jezero sky · save to photos" : "Mars from orbit · save to photos"}
+            Jezero midnight sky · save to photos
           </p>
 
-          <div className="mt-3 overflow-hidden border border-ink/15 bg-dusk">
+          <div className="mt-3 overflow-hidden border border-ink/15 bg-black">
             {previewUrl ? (
               <img
                 src={previewUrl}
-                alt={`Mars ${state.view === "surface" ? "sky" : "from orbit"} on ${formatShareHeadline(state.date)}`}
-                className="mx-auto block max-h-52 w-full object-contain"
+                alt={`Whole-sky chart over Jezero on ${formatShareHeadline(state.date)}`}
+                className="mx-auto block max-h-72 w-full bg-black object-contain"
               />
             ) : (
-              <div className="flex h-36 items-center justify-center px-4 text-center text-[11px] leading-relaxed text-mute">
-                {building ? "Capturing the sky…" : (imageError ?? "No image yet.")}
+              <div className="flex h-44 items-center justify-center px-4 text-center text-[11px] leading-relaxed text-mute">
+                {building ? "Drawing the sky…" : (imageError ?? "No image yet.")}
               </div>
             )}
           </div>

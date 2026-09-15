@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { DatePicker } from "./components/DatePicker";
 import { GlobeView } from "./components/GlobeView";
 import { ScaleToggle } from "./components/ScaleToggle";
@@ -14,7 +14,6 @@ import {
   isDefaultShare,
   parseShareSearch,
 } from "./lib/share";
-import { capturePreferredView, type CaptureFrame } from "./lib/shareImage";
 import { computeSky } from "./lib/sky";
 
 const boot =
@@ -25,19 +24,11 @@ const boot =
 export default function App() {
   const [date, setDate] = useState(boot.date);
   const [lookAt, setLookAt] = useState<SkyLookAt | null>(null);
-  const skyCaptureRef = useRef<CaptureFrame | null>(null);
-  const globeCaptureRef = useRef<CaptureFrame | null>(null);
   const sky = useMemo(() => computeSky(date), [date]);
   const { scale, approach, busy, goSurface, goOrbit, setScaleExplicit } = useScale(boot.view);
   const onSurface = scale === "surface";
   const showSky = onSurface || approach > 0.62;
   const shareState = { date, view: onSurface ? ("surface" as const) : ("orbit" as const) };
-  const preferSkyRef = useRef(showSky);
-  preferSkyRef.current = showSky;
-  const capture = useCallback(
-    () => capturePreferredView(preferSkyRef.current, skyCaptureRef.current, globeCaptureRef.current),
-    [],
-  );
   const earth = sky.bodies.find((b) => b.kind === "earth") ?? null;
   const moons = sky.bodies.filter((b) => b.kind === "satellite");
 
@@ -84,7 +75,6 @@ export default function App() {
           approach={approach}
           className="h-full w-full"
           onEnterSurface={goSurface}
-          captureRef={globeCaptureRef}
         />
       </div>
 
@@ -99,7 +89,6 @@ export default function App() {
             mode="look"
             lookAt={lookAt}
             className="h-full w-full"
-            captureRef={skyCaptureRef}
           />
         </div>
       )}
@@ -113,7 +102,7 @@ export default function App() {
           {onSurface && <SkyCallouts earth={earth} moons={moons} onLook={onLook} />}
         </div>
         <div className="pointer-events-auto flex flex-col items-end gap-2">
-          <ShareSky state={shareState} capture={capture} />
+          <ShareSky state={shareState} sky={sky} />
           {onSurface && (
             <ScaleToggle value={scale} onChange={setScaleExplicit} disabled={busy} />
           )}
