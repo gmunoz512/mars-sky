@@ -3,6 +3,7 @@ import * as THREE from "three";
 import albedoUrl from "../assets/mars/mars-albedo.jpg";
 import bumpUrl from "../assets/mars/mars-bump.jpg";
 import {
+  ORBIT_BODY_DISTANCE,
   ORBIT_FOV_DEG,
   bodyFixedToThree,
   clampOrbitPitch,
@@ -10,16 +11,19 @@ import {
   jezeroUnitFixed,
   orbitCameraDir,
   orbitCameraDistance,
+  orbitMarkerVisible,
   portraitFaceUnitFixed,
   yawToFaceCamera,
 } from "../lib/globe";
 import { fitRendererToHost } from "../lib/renderer";
 import { JEZERO } from "../lib/jezero";
 import type { Vec3 } from "../lib/math";
+import type { OrbitBody } from "../lib/sky";
 
 type Props = {
   ls: number;
   sunFixed: Vec3;
+  orbitBodies: OrbitBody[];
   approach: number;
   className?: string;
   onEnterSurface: () => void;
@@ -53,16 +57,18 @@ void main() {
 }
 `;
 
-export function GlobeView({ ls, sunFixed, approach, className, onEnterSurface }: Props) {
+export function GlobeView({ ls, sunFixed, orbitBodies, approach, className, onEnterSurface }: Props) {
   const hostRef = useRef<HTMLDivElement>(null);
   const overlayRef = useRef<HTMLDivElement>(null);
   const sunRef = useRef(sunFixed);
+  const bodiesRef = useRef(orbitBodies);
   const approachRef = useRef(approach);
   const onEnterRef = useRef(onEnterSurface);
   const mapRef = useRef<THREE.CanvasTexture | null>(null);
   const albedoSrcRef = useRef<CanvasImageSource | null>(null);
   const lsRef = useRef(ls);
   sunRef.current = sunFixed;
+  bodiesRef.current = orbitBodies;
   approachRef.current = approach;
   onEnterRef.current = onEnterSurface;
   lsRef.current = ls;
@@ -227,6 +233,100 @@ export function GlobeView({ ls, sunFixed, approach, className, onEnterSurface }:
       "pointer-events-none absolute left-0 top-0 text-[10px] uppercase tracking-[0.22em] text-ink/70";
     overlay.appendChild(label);
 
+    type PlanetMarker = {
+      earth: boolean;
+      core: THREE.Mesh;
+      halo: THREE.Mesh;
+      label: HTMLDivElement;
+      coreMat: THREE.MeshBasicMaterial;
+      haloMat: THREE.MeshBasicMaterial;
+    };
+    const planetGeo = new THREE.SphereGeometry(1, 20, 16);
+    const planetMarkers = new Map<string, PlanetMarker>();
+    const worldMarker = new THREE.Vector3();
+    const ndcScratch = new THREE.Vector3();
+
+    const syncPlanetMarkers = (bodies: OrbitBody[]) => {
+      const seen = new Set<string>();
+      for (const body of bodies) {
+        seen.add(body.id);
+        let marker = planetMarkers.get(body.id);
+        if (!marker) {
+          const earth = body.kind === "earth";
+          const coreMat = new THREE.MeshBasicMaterial({
+            color: body.color,
+            transparent: true,
+            depthWrite: false,
+          });
+          const haloMat = new THREE.MeshBasicMaterial({
+            color: body.color,
+            transparent: true,
+            opacity: earth ? 0.34 : 0.2,
+            depthWrite: false,
+            blending: THREE.AdditiveBlending,
+          });
+          const core = new THREE.Mesh(planetGeo, coreMat);
+          const halo = new THREE.Mesh(planetGeo, haloMat);
+          marsGroup.add(core);
+          marsGroup.add(halo);
+          const el = document.createElement("div");
+          el.textContent = body.name;
+          el.style.color = body.color;
+          el.className = earth
+            ? "pointer-events-none absolute left-0 top-0 text-[11px] font-medium tracking-[0.16em] drop-shadow-[0_0_10px_rgba(142,198,230,0.55)]"
+            : "pointer-events-none absolute left-0 top-0 text-[10px] uppercase tracking-[0.2em] text-ink/80";
+          overlay.appendChild(el);
+          marker = { earth, core, halo, label: el, coreMat, haloMat };
+          planetMarkers.set(body.id, marker);
+        }
+        const dir = bodyFixedToThree(body.fixed);
+        worldMarker.set(dir.x, dir.y, dir.z).setLength(ORBIT_BODY_DISTANCE);
+        marker.core.position.copy(worldMarker);
+        marker.halo.position.copy(worldMarker);
+      }
+      for (const [id, marker] of planetMarkers) {
+        if (seen.has(id)) continue;
+        marsGroup.remove(marker.core);
+        marsGroup.remove(marker.halo);
+        marker.coreMat.dispose();
+        marker.haloMat.dispose();
+        marker.label.remove();
+        planetMarkers.delete(id);
+      }
+    };
+
+    const placePlanetMarkers = (approachAmt: number) => {
+      const camLen = camera.position.length();
+      const pulse = 0.28 + 0.16 * Math.sin(performance.now() * 0.0024);
+      const w = host.clientWidth;
+      const h = host.clientHeight;
+      const camV = { x: camera.position.x, y: camera.position.y, z: camera.position.z };
+      for (const marker of planetMarkers.values()) {
+        const coreR = (marker.earth ? 0.0078 : 0.0044) * camLen;
+        const haloR = (marker.earth ? 0.022 : 0.011) * camLen;
+        marker.core.scale.setScalar(coreR);
+        marker.halo.scale.setScalar(haloR);
+        if (marker.earth) marker.haloMat.opacity = pulse;
+        worldMarker.copy(marker.core.position).applyMatrix4(marsGroup.matrixWorld);
+        const around = orbitMarkerVisible(camV, {
+          x: worldMarker.x,
+          y: worldMarker.y,
+          z: worldMarker.z,
+        });
+        const ndc = ndcScratch.copy(worldMarker).project(camera);
+        const inFrame =
+          ndc.z < 1 && ndc.x > -0.98 && ndc.x < 0.98 && ndc.y > -0.92 && ndc.y < 0.92;
+        const show = around && inFrame && approachAmt < 0.42;
+        marker.core.visible = show;
+        marker.halo.visible = show;
+        marker.label.style.display = show ? "block" : "none";
+        if (!show) continue;
+        const lift = marker.earth ? -160 : -130;
+        marker.label.style.transform = `translate(-50%, ${lift}%) translate(${(ndc.x * 0.5 + 0.5) * w}px, ${(-ndc.y * 0.5 + 0.5) * h}px)`;
+        marker.label.style.opacity = marker.earth ? "1" : "0.88";
+      }
+    };
+
     const sun = new THREE.DirectionalLight(0xfff2dc, 2.4);
     scene.add(sun);
     const fill = new THREE.AmbientLight(0x1a1410, 0.06);
@@ -338,6 +438,7 @@ export function GlobeView({ ls, sunFixed, approach, className, onEnterSurface }:
       userAz.current += (targetAz.current - userAz.current) * 0.14;
       userEl.current += (targetEl.current - userEl.current) * 0.14;
       marsGroup.rotation.y = vallesYaw * (1 - a) + jezeroYaw * a;
+      marsGroup.updateMatrixWorld();
 
       const orbitDist = orbitCameraDistance(aspectRef.current, ORBIT_FOV_DEG);
       const dist = orbitDist * (1 - a) + 1.12 * a;
@@ -359,6 +460,8 @@ export function GlobeView({ ls, sunFixed, approach, className, onEnterSurface }:
       glowMat.opacity = 0.22 + 0.16 * Math.sin(performance.now() * 0.002);
       applySun(a);
       placeLabel();
+      syncPlanetMarkers(bodiesRef.current);
+      placePlanetMarkers(a);
       renderer.render(scene, camera);
     };
 
@@ -387,6 +490,14 @@ export function GlobeView({ ls, sunFixed, approach, className, onEnterSurface }:
       (pin.material as THREE.Material).dispose();
       glow.geometry.dispose();
       (glow.material as THREE.Material).dispose();
+      for (const marker of planetMarkers.values()) {
+        marsGroup.remove(marker.core);
+        marsGroup.remove(marker.halo);
+        marker.coreMat.dispose();
+        marker.haloMat.dispose();
+      }
+      planetMarkers.clear();
+      planetGeo.dispose();
       starGeo.dispose();
       (stars.material as THREE.Material).dispose();
       renderer.dispose();

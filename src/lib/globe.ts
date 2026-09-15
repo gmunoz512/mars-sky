@@ -46,9 +46,12 @@ export function yawToFaceCamera(v: Vec3): number {
 /**
  * Fraction of the *shorter* viewport axis the globe should fill.
  * Small enough that a phone still shows a complete sphere in black space.
+ * 0.506 is ~15% larger than the original 0.44 framing.
  */
-export const ORBIT_FILL = 0.44;
+export const ORBIT_FILL = 0.506;
 export const ORBIT_FOV_DEG = 36;
+/** Distance from Mars center to orbit-view planet markers (Mars radius = 1). */
+export const ORBIT_BODY_DISTANCE = 1.48;
 /** How far the camera can pitch off the equator before it locks (radians). */
 export const ORBIT_PITCH_MAX = 1.2;
 
@@ -96,6 +99,49 @@ export function orbitCameraDistance(
   const minHalf = Math.min(vHalf, hHalf);
   const ang = Math.atan(minHalf * fill);
   return radius / Math.sin(Math.max(ang, 0.02));
+}
+
+/** True when the segment from `origin` to `target` hits a sphere at the origin first. */
+export function rayHitsSphereBefore(origin: Vec3, target: Vec3, radius: number): boolean {
+  const dx = target.x - origin.x;
+  const dy = target.y - origin.y;
+  const dz = target.z - origin.z;
+  const len = Math.hypot(dx, dy, dz);
+  if (len < 1e-6) return false;
+  const inv = 1 / len;
+  const dirx = dx * inv;
+  const diry = dy * inv;
+  const dirz = dz * inv;
+  const b = origin.x * dirx + origin.y * diry + origin.z * dirz;
+  const c = origin.x * origin.x + origin.y * origin.y + origin.z * origin.z - radius * radius;
+  const disc = b * b - c;
+  if (disc < 0) return false;
+  const t = -b - Math.sqrt(Math.max(0, disc));
+  return t > 1e-4 && t < len - 1e-4;
+}
+
+/**
+ * True when a planet marker sits in the sky around Mars — not behind the
+ * globe, and not drawn over the disk like a surface feature.
+ */
+export function orbitMarkerVisible(
+  camera: Vec3,
+  marker: Vec3,
+  opts?: { globeRadius?: number; limbSlack?: number },
+): boolean {
+  const globeRadius = opts?.globeRadius ?? 1.04;
+  const limbSlack = opts?.limbSlack ?? 0.9;
+  if (rayHitsSphereBefore(camera, marker, globeRadius)) return false;
+  const vx = marker.x - camera.x;
+  const vy = marker.y - camera.y;
+  const vz = marker.z - camera.z;
+  const vLen = Math.hypot(vx, vy, vz);
+  const camLen = Math.hypot(camera.x, camera.y, camera.z);
+  if (vLen < 1e-6 || camLen <= globeRadius) return false;
+  const cos = (-camera.x * vx - camera.y * vy - camera.z * vz) / (camLen * vLen);
+  const alpha = Math.acos(Math.min(1, Math.max(-1, cos)));
+  const marsAng = Math.asin(Math.min(1, globeRadius / camLen));
+  return alpha > marsAng * limbSlack;
 }
 
 export const GLOBE_CREDIT = "NASA/JPL/USGS";

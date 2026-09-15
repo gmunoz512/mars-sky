@@ -102,4 +102,23 @@ describe("birthday sky", () => {
       expect(sky.labels.some((l) => l.kind === "earth" && l.text === "Earth")).toBe(true);
     }
   });
+
+  it("places Earth and naked-eye planets in Mars body-fixed for the orbit globe", () => {
+    const sky = computeSky({ year: 2021, month: 2, day: 18 });
+    expect(sky.orbitBodies.map((b) => b.id).sort()).toEqual([
+      "earth",
+      "jupiter",
+      "mercury",
+      "saturn",
+      "venus",
+    ]);
+    const earth = sky.orbitBodies.find((b) => b.id === "earth");
+    expect(earth).toBeDefined();
+    expect(earth!.kind).toBe("earth");
+    expect(earth!.fixed.x ** 2 + earth!.fixed.y ** 2 + earth!.fixed.z ** 2).toBeCloseTo(1, 5);
+    expect(earth!.distAu).toBeGreaterThan(0.3);
+    expect(earth!.distAu).toBeLessThan(2.7);
+    expect(Math.abs(dot(earth!.fixed, sky.sunFixed))).toBeLessThan(0.99);
+    expect(sky.orbitBodies.some((b) => b.id === "sun" || b.id === "moon")).toBe(false);
+  });
 });

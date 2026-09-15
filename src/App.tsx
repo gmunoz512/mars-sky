@@ -72,6 +72,7 @@ export default function App() {
         <GlobeView
           ls={sky.ls}
           sunFixed={sky.sunFixed}
+          orbitBodies={sky.orbitBodies}
           approach={approach}
           className="h-full w-full"
           onEnterSurface={goSurface}
@@ -102,9 +103,11 @@ export default function App() {
           {onSurface && <SkyCallouts earth={earth} moons={moons} onLook={onLook} />}
         </div>
         <div className="pointer-events-auto flex flex-col items-end gap-2">
-          <ShareSky state={shareState} sky={sky} />
           {onSurface && (
-            <ScaleToggle value={scale} onChange={setScaleExplicit} disabled={busy} />
+            <>
+              <ShareSky state={shareState} sky={sky} />
+              <ScaleToggle value={scale} onChange={setScaleExplicit} disabled={busy} />
+            </>
           )}
         </div>
       </header>
