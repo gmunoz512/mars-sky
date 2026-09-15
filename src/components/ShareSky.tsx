@@ -13,6 +13,7 @@ import {
   shareImageFilename,
 } from "../lib/shareImage";
 import type { SkyModel } from "../lib/sky";
+import { outlineControlClass } from "./outlineControl";
 
 type Props = {
   state: ShareState;
@@ -135,7 +136,7 @@ export function ShareSky({ state, sky }: Props) {
         onClick={() => setOpen((v) => !v)}
         aria-expanded={open}
         aria-haspopup="dialog"
-        className="border border-ink/25 px-4 py-2 text-[10px] font-medium uppercase tracking-[0.26em] text-ink/90 transition hover:border-rust/70 hover:text-ink"
+        className={outlineControlClass}
       >
         Share
       </button>
