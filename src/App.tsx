@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { DatePicker } from "./components/DatePicker";
 import { GlobeView } from "./components/GlobeView";
 import { ScaleToggle } from "./components/ScaleToggle";
@@ -8,10 +8,6 @@ import { JEZERO } from "./lib/jezero";
 import { computeSky, formatUtc, type CivilDate } from "./lib/sky";
 
 const DEFAULT_DATE: CivilDate = { year: 2021, month: 2, day: 18 };
-
-function sameDate(a: CivilDate, b: CivilDate): boolean {
-  return a.year === b.year && a.month === b.month && a.day === b.day;
-}
 
 function bodyLine(sky: ReturnType<typeof computeSky>): string {
   const up = sky.bodies.filter((b) => b.alt > 0).map((b) => b.name);
@@ -25,15 +21,6 @@ export default function App() {
   const { scale, approach, busy, goSurface, goOrbit, setScaleExplicit } = useScale();
   const onSurface = scale === "surface";
   const showSky = onSurface || approach > 0.62;
-
-  const onDate = useCallback(
-    (next: CivilDate) => {
-      const changed = !sameDate(date, next);
-      setDate(next);
-      if (changed) goSurface();
-    },
-    [date, goSurface],
-  );
 
   useEffect(() => {
     const onWheel = (e: WheelEvent) => {
@@ -82,18 +69,33 @@ export default function App() {
           </p>
         </div>
         <div className="pointer-events-auto">
-          <ScaleToggle value={scale} onChange={setScaleExplicit} disabled={busy} />
+          {onSurface && (
+            <ScaleToggle value={scale} onChange={setScaleExplicit} disabled={busy} />
+          )}
         </div>
       </header>
 
       <div className="pointer-events-none absolute inset-x-0 bottom-0 z-10 bg-gradient-to-t from-dusk/65 via-dusk/18 to-transparent px-5 pb-5 pt-10 sm:px-8 sm:pb-7">
         <div className="flex flex-col gap-6 sm:flex-row sm:items-end sm:justify-between">
           <div className="pointer-events-auto w-full max-w-md">
-            <DatePicker value={date} onChange={onDate} compact />
+            <p className="mb-3 text-[10px] font-medium uppercase tracking-[0.28em] text-mute">
+              Birthday
+            </p>
+            <DatePicker value={date} onChange={setDate} compact />
+            {!onSurface && (
+              <button
+                type="button"
+                disabled={busy}
+                onClick={goSurface}
+                className="mt-5 border border-ink/25 px-4 py-2 text-[10px] font-medium uppercase tracking-[0.26em] text-ink/90 transition hover:border-rust/70 hover:text-ink disabled:opacity-40"
+              >
+                Zoom in
+              </button>
+            )}
             <p className="mt-3 text-[11px] leading-relaxed text-mute">
               {onSurface
                 ? "Local true solar midnight. Drag to look. Horizon is one Perseverance Mastcam-Z 360 (PIA24663), not a HiRISE mesh — daylight photo under a midnight sky."
-                : "Enter a birthday to stand on Jezero and look out. Drag the globe to turn it."}{" "}
+                : "Set a birthday, then zoom in to stand on Jezero and look out. Drag the globe to turn it."}{" "}
               <span className="text-ink/55">{formatUtc(sky.utc)}</span>
             </p>
           </div>
