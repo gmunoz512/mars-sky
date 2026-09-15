@@ -91,4 +91,15 @@ describe("birthday sky", () => {
       expect(r).toBeLessThan(30_000);
     }
   });
+
+  it("labels moons and Earth with distinct kinds when they are up", () => {
+    const sky = computeSky({ year: 2021, month: 2, day: 18 });
+    for (const moon of sky.bodies.filter((b) => b.kind === "satellite")) {
+      expect(sky.labels.some((l) => l.kind === "moon" && l.text === moon.name)).toBe(true);
+    }
+    const earth = sky.bodies.find((b) => b.kind === "earth");
+    if (earth) {
+      expect(sky.labels.some((l) => l.kind === "earth" && l.text === "Earth")).toBe(true);
+    }
+  });
 });

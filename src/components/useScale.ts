@@ -13,9 +13,9 @@ function smoothstep(t: number): number {
   return t * t * (3 - 2 * t);
 }
 
-export function useScale() {
-  const [scale, setScale] = useState<Scale>("orbit");
-  const [approach, setApproach] = useState(0);
+export function useScale(initial: Scale = "orbit") {
+  const [scale, setScale] = useState<Scale>(initial);
+  const [approach, setApproach] = useState(initial === "surface" ? 1 : 0);
   const [busy, setBusy] = useState(false);
   const rafRef = useRef(0);
 
