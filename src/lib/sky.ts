@@ -2,6 +2,7 @@ import {
   Body,
   HelioVector,
   MakeTime,
+  RotationAxis,
   type FlexibleDateTime,
 } from "astronomy-engine";
 import { CONSTELLATIONS, STARS } from "./catalog";
@@ -12,7 +13,7 @@ import {
   marsBodyFixedFromEqj,
   type Horizon,
 } from "./marsFrame";
-import { type Vec3, KM_PER_AU, hypot3, mulVec, normalize, raDecToEqj } from "./math";
+import { type Vec3, type Mat3, KM_PER_AU, hypot3, mulVec, normalize, raDecToEqj } from "./math";
 import { findJezeroMidnight } from "./midnight";
 import { marsMoonsEqjKm } from "./moons";
 import { jezeroSeason, marsSolarLongitude } from "./season";
@@ -48,6 +49,8 @@ export type OrbitBody = {
   fixed: Vec3;
   /** Mars-centered distance in AU (moons converted from km). */
   distAu: number;
+  /** Unit north pole in Mars body-fixed, when known (planets and Sun). */
+  poleFixed?: Vec3;
 };
 
 /** Naked-eye planets called out in the orbit-view sky (plus Sun and moons separately). */
@@ -86,6 +89,11 @@ const PLANETS: { body: Body; id: string; name: string; kind: SkyBody["kind"]; co
     { body: Body.Uranus, id: "uranus", name: "Uranus", kind: "planet", color: "#9fd4d0" },
     { body: Body.Neptune, id: "neptune", name: "Neptune", kind: "planet", color: "#7ea4d9" },
   ];
+
+function northPoleFixed(body: Body, eqjToFixed: Mat3, time: ReturnType<typeof MakeTime>): Vec3 {
+  const n = RotationAxis(body, time).north;
+  return normalize(mulVec(eqjToFixed, { x: n.x, y: n.y, z: n.z }));
+}
 
 const C_AU_PER_DAY = 173.1446326742403;
 
@@ -209,6 +217,7 @@ export function computeSky(date: CivilDate): SkyModel {
         color: spec.color,
         fixed,
         distAu,
+        poleFixed: northPoleFixed(spec.body, frame.eqjToFixed, time),
       });
     } else if (orbitIds.has(spec.id) && (spec.kind === "earth" || spec.kind === "planet")) {
       orbitBodies.push({
@@ -218,6 +227,7 @@ export function computeSky(date: CivilDate): SkyModel {
         color: spec.color,
         fixed,
         distAu,
+        poleFixed: northPoleFixed(spec.body, frame.eqjToFixed, time),
       });
     }
     const h = eqjToHorizon(eqjAu, frame.eqjToFixed);

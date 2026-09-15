@@ -7,11 +7,15 @@ import {
   ORBIT_MOON_NEAR,
   ORBIT_SKY_FAR,
   ORBIT_SKY_NEAR,
+  PLANET_SOURCES,
   PORTRAIT_FACE,
+  SATURN_RING_INNER,
+  SATURN_RING_OUTER,
   VALLES_MARINERIS,
   ORBIT_FILL,
   clampOrbitPitch,
   narrowerFovDeg,
+  orbitBodyLook,
   orbitBodyOccluded,
   orbitCameraDir,
   orbitCameraDistance,
@@ -20,7 +24,10 @@ import {
   orbitBodyAngularSize,
   polarCapExtents,
   portraitFaceUnitFixed,
+  quatAlignYTo,
   rayHitsSphereBefore,
+  rotateByQuat,
+  saturnRingRadialUv,
   sphereAngularDiameterDeg,
   yawToFaceCamera,
 } from "./globe";
@@ -31,6 +38,17 @@ describe("GLOBE_SOURCES", () => {
     expect(GLOBE_CREDIT).toContain("USGS");
     expect(GLOBE_SOURCES[0]!.id).toBe("MDIM21");
     expect(GLOBE_SOURCES[0]!.url).toContain("astrogeology.usgs.gov");
+  });
+});
+
+describe("PLANET_SOURCES", () => {
+  it("credits NASA maps and the CC-BY Sun/Saturn wraps", () => {
+    const ids = PLANET_SOURCES.map((s) => s.id).sort();
+    expect(ids).toEqual(["earth", "jupiter", "mercury", "phobos", "saturn", "sun", "venus"]);
+    expect(PLANET_SOURCES.find((s) => s.id === "jupiter")!.url).toContain("PIA07782");
+    expect(PLANET_SOURCES.find((s) => s.id === "earth")!.url).toContain("visibleearth.nasa.gov");
+    expect(PLANET_SOURCES.find((s) => s.id === "sun")!.credit).toMatch(/CC BY/);
+    expect(PLANET_SOURCES.find((s) => s.id === "saturn")!.role).toMatch(/ring/i);
   });
 });
 
@@ -100,6 +118,12 @@ describe("orbit sky placement", () => {
     expect(orbitSkyDistance(10, "planet")).toBeLessThanOrEqual(ORBIT_SKY_FAR);
     expect(orbitBodyAngularSize("earth", 0.8)).toBeGreaterThan(orbitBodyAngularSize("planet", 5));
     expect(orbitBodyAngularSize("sun", 1.5)).toBeGreaterThan(orbitBodyAngularSize("planet", 1.5));
+    expect(orbitBodyAngularSize("planet", 5, "jupiter")).toBeGreaterThan(
+      orbitBodyAngularSize("planet", 0.4, "mercury"),
+    );
+    expect(orbitBodyAngularSize("satellite", 0.0001, "phobos")).toBeLessThan(
+      orbitBodyAngularSize("earth", 0.8, "earth"),
+    );
   });
 
   it("keeps Phobos and Deimos close to Mars, inward of every planet shell", () => {
@@ -165,6 +189,28 @@ describe("orbit sky placement", () => {
     expect(seen.size).toBeGreaterThanOrEqual(5);
     expect(occludedAtRest.size).toBeGreaterThan(0);
     expect([...occludedAtRest].some((id) => seen.has(id))).toBe(true);
+  });
+});
+
+describe("orbit body globes", () => {
+  it("gives Saturn rings, an unlit Sun, and Earth a blue atmosphere", () => {
+    expect(orbitBodyLook("saturn", "planet").rings).toBe(true);
+    expect(orbitBodyLook("sun", "sun").unlit).toBe(true);
+    expect(orbitBodyLook("earth", "earth").atmos).toBe("earth");
+    expect(orbitBodyLook("mercury", "planet").unlit).toBe(false);
+    expect(SATURN_RING_INNER).toBeLessThan(SATURN_RING_OUTER);
+    expect(saturnRingRadialUv(SATURN_RING_INNER, 0)).toBeCloseTo(0, 5);
+    expect(saturnRingRadialUv(SATURN_RING_OUTER, 0)).toBeCloseTo(1, 5);
+  });
+
+  it("aligns sphere +Y with a body's north pole", () => {
+    const ident = quatAlignYTo({ x: 0, y: 1, z: 0 });
+    expect(ident.w).toBeCloseTo(1, 5);
+    const toX = quatAlignYTo({ x: 1, y: 0, z: 0 });
+    const y = rotateByQuat(toX, { x: 0, y: 1, z: 0 });
+    expect(y.x).toBeCloseTo(1, 5);
+    expect(y.y).toBeCloseTo(0, 5);
+    expect(y.z).toBeCloseTo(0, 5);
   });
 });
 

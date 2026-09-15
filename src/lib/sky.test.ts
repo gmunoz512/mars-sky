@@ -119,6 +119,10 @@ describe("birthday sky", () => {
     expect(earth).toBeDefined();
     expect(earth!.kind).toBe("earth");
     expect(earth!.fixed.x ** 2 + earth!.fixed.y ** 2 + earth!.fixed.z ** 2).toBeCloseTo(1, 5);
+    expect(earth!.poleFixed).toBeDefined();
+    expect(
+      earth!.poleFixed!.x ** 2 + earth!.poleFixed!.y ** 2 + earth!.poleFixed!.z ** 2,
+    ).toBeCloseTo(1, 5);
     expect(earth!.distAu).toBeGreaterThan(0.3);
     expect(earth!.distAu).toBeLessThan(2.7);
     expect(Math.abs(dot(earth!.fixed, sky.sunFixed))).toBeLessThan(0.99);
