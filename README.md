@@ -17,7 +17,7 @@ Enter a date. Orbit a real NASA mosaic of Mars. Zoom in and stand at Perseveranc
 ## Features
 
 - **Orbit globe** — Viking MDIM 2.1 (NASA/JPL/USGS), full sphere in black space. Drag or swipe to rotate; Valles Marineris faces you at rest.
-- **Birthday → Jezero** — year, month, and day zoom you onto the crater floor. The sky is recomputed for that midnight.
+- **Birthday → Jezero** — enter a year, month, and day, then zoom in onto the crater floor. The sky is recomputed for that midnight. Changing the date does not enter the surface on its own.
 - **Look around** — Hipparcos stars (mag ≤ 6), IAU stick figures, planets when they are up, Phobos and Deimos.
 - **Honest NASA imagery** — globe and terrain are public-domain photographs, not a generated texture or a HiRISE mesh.
 
