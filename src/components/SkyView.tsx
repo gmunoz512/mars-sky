@@ -26,6 +26,8 @@ type Props = {
   className?: string;
   lookAt?: SkyLookAt | null;
   onReady?: () => void;
+  /** When false, keep the scene warm but skip drawing so the orbit tween stays smooth. */
+  active?: boolean;
 };
 
 type LabelEl = {
@@ -79,15 +81,17 @@ function fillStarGeometry(stars: SkyStar[]): THREE.BufferGeometry {
   return geo;
 }
 
-export function SkyView({ sky, mode, className, lookAt, onReady }: Props) {
+export function SkyView({ sky, mode, className, lookAt, onReady, active = true }: Props) {
   const hostRef = useRef<HTMLDivElement>(null);
   const overlayRef = useRef<HTMLDivElement>(null);
   const applyRef = useRef<(model: SkyModel) => void>(() => undefined);
   const lookRef = useRef<(target: SkyLookAt) => void>(() => undefined);
   const onReadyRef = useRef(onReady);
   const modeRef = useRef(mode);
+  const activeRef = useRef(active);
   modeRef.current = mode;
   onReadyRef.current = onReady;
+  activeRef.current = active;
 
   useEffect(() => {
     const host = hostRef.current;
@@ -163,9 +167,11 @@ export function SkyView({ sky, mode, className, lookAt, onReady }: Props) {
     const photo: { dispose: () => void } = { dispose() {} };
     let cancelled = false;
     let readySent = false;
+    let warmed = false;
     const signalReady = () => {
       if (readySent || cancelled) return;
       readySent = true;
+      warmed = true;
       onReadyRef.current?.();
     };
 
@@ -415,7 +421,9 @@ export function SkyView({ sky, mode, className, lookAt, onReady }: Props) {
       }
       yaw.current += (targetYaw.current - yaw.current) * 0.12;
       pitch.current += (targetPitch.current - pitch.current) * 0.12;
-      paint();
+      // After GPU warmup, skip draws until the surface is shown so the
+      // orbit fly-in is not fighting a second WebGL renderer.
+      if (!warmed || activeRef.current) paint();
       raf = requestAnimationFrame(tick);
     };
     raf = requestAnimationFrame(tick);

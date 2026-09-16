@@ -129,6 +129,7 @@ export default function App() {
             lookAt={lookAt}
             className="h-full w-full"
             onReady={onSkyReady}
+            active={onSurface}
           />
         </div>
       )}
