@@ -172,13 +172,11 @@ export function SkyView({ sky, mode, className, lookAt }: Props) {
 
         const groundTex = fadeGroundRim(groundRaw);
         groundRaw.dispose();
-        groundTex.anisotropy = aniso;
+        configureGroundMap(groundTex, aniso);
 
         const horizonTex = fadePhoto(horizonRaw, { top: 0.06 });
         horizonRaw.dispose();
-        sharpenHorizonMap(horizonTex);
-        horizonTex.wrapS = THREE.RepeatWrapping;
-        horizonTex.wrapT = THREE.ClampToEdgeWrapping;
+        configureHorizonMap(horizonTex);
 
         const groundGeo = buildPhotoGroundGeometry();
         const groundMat = new THREE.MeshBasicMaterial({
@@ -459,12 +457,25 @@ function smooth01(t: number): number {
   return u * u * (3 - 2 * u);
 }
 
+/** Floor plane: mipmaps + anisotropy so a grazing view stays sharp. */
+function configureGroundMap(tex: THREE.Texture, anisotropy: number): void {
+  tex.generateMipmaps = true;
+  tex.minFilter = THREE.LinearMipmapLinearFilter;
+  tex.magFilter = THREE.LinearFilter;
+  tex.anisotropy = Math.max(1, anisotropy);
+  tex.wrapS = THREE.ClampToEdgeWrapping;
+  tex.wrapT = THREE.ClampToEdgeWrapping;
+  tex.needsUpdate = true;
+}
+
 /** Keep the horizon strip crisp — mipmaps turn a 200-px-tall ridge to mush. */
-function sharpenHorizonMap(tex: THREE.Texture): void {
+function configureHorizonMap(tex: THREE.Texture): void {
   tex.generateMipmaps = false;
   tex.minFilter = THREE.LinearFilter;
   tex.magFilter = THREE.LinearFilter;
   tex.anisotropy = 1;
+  tex.wrapS = THREE.RepeatWrapping;
+  tex.wrapT = THREE.ClampToEdgeWrapping;
   tex.needsUpdate = true;
 }
 

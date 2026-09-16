@@ -5,6 +5,8 @@
  * Mastcam-Z PIA24663 (Van Zyl Overlook). NASA/JPL-Caltech/ASU/MSSS.
  * Horizon strip is 4096×1024 so distant hills keep Mastcam-Z pixels
  * without exceeding a 4096 WebGL texture cap (the old 96-px strip smeared).
+ * Ground disc is a native 2048² near-field yard crop (the old 568²
+ * mid-distance patch was upscaled to 1536 and looked soft).
  * Not a HiRISE DEM. Daylight photo under a computed midnight sky.
  *
  * PIA24921 / PIA26378 are not layered as extra cylinders — those

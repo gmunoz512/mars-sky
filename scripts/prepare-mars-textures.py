@@ -35,9 +35,24 @@ MDIM_TITLE = "File:Mars Viking MDIM21 ClrMosaic 1km.jpg"
 UA = "birthday-in-mars/1.0 (educational; NASA/USGS public-domain maps)"
 
 
-def save_jpeg(im: Image.Image, path: Path, size: tuple[int, int], quality: int) -> None:
-    im.convert("RGB").resize(size, Image.Resampling.LANCZOS).save(
-        path, "JPEG", quality=quality, optimize=True, progressive=True
+def save_jpeg(
+    im: Image.Image,
+    path: Path,
+    quality: int,
+    *,
+    size: tuple[int, int] | None = None,
+    subsampling: int = 2,
+) -> None:
+    out = im.convert("RGB")
+    if size is not None and out.size != size:
+        out = out.resize(size, Image.Resampling.LANCZOS)
+    out.save(
+        path,
+        "JPEG",
+        quality=quality,
+        optimize=True,
+        progressive=True,
+        subsampling=subsampling,
     )
 
 
@@ -130,11 +145,33 @@ def make_bump(albedo: Image.Image) -> Image.Image:
     return ImageOps.autocontrast(hipass, cutoff=1)
 
 
+# PIA24663~orig.jpg is 23265×5165. The near-field yard (below the hill
+# band, above rover hardware) has ~2000 native Mastcam-Z pixels of rock
+# and soil. The old 568² mid-distance pebble patch at y≈13% was upscaled
+# 2.7× to 1536 and looked soft under the camera.
+PIA24663_SIZE = (23265, 5165)
+GROUND_BOX_NATIVE = (8747, 1400, 8747 + 2048, 1400 + 2048)
+GROUND_OUT = 2048
+
+
+def ground_box(van: Image.Image) -> tuple[int, int, int, int]:
+    """Square crop of the rover-free near-field yard."""
+    w, h = van.size
+    if van.size == PIA24663_SIZE:
+        return GROUND_BOX_NATIVE
+    # Fallback if NASA replaces the original with another resolution.
+    gs = min(2048, w, int(0.40 * h))
+    x0 = max(0, min(w - gs, int(0.376 * w)))
+    y0 = max(0, min(h - gs, int(0.271 * h)))
+    return (x0, y0, x0 + gs, y0 + gs)
+
+
 def prepare_surface(van: Image.Image) -> None:
     w, h = van.size
-    # Keep full width so the cylinder join is the real 360 wrap. Rover deck
-    # starts ~26% down; inpaint any mast that still pokes into this band.
-    # Stop above the rover deck / RSM mast that sit on the 360 join.
+    # Keep full width so the cylinder join is the real 360 wrap. Rover
+    # hardware sits on the lower-left / lower-right of the full mosaic
+    # (and a thin deck strip at the bottom). The hill band is the top
+    # ~23%; inpaint any mast that still pokes into this strip.
     band = van.crop((0, int(0.020 * h), w, int(0.232 * h)))
     band = inpaint_rover(band)
     # Horizon already wraps; blend only the sky/far hills so inpaint
@@ -148,16 +185,17 @@ def prepare_surface(van: Image.Image) -> None:
     out_h = min(band.size[1], 1024)
     sharp = band.resize((out_w, out_h), Image.Resampling.LANCZOS)
     sharp = sharp.filter(ImageFilter.UnsharpMask(radius=1.2, percent=140, threshold=2))
-    sharp.convert("RGB").save(
-        OUT / "jezero-horizon.jpg", "JPEG", quality=88, optimize=True, progressive=True
-    )
+    # q90 / 4:2:0: a small quality bump over q88 without the 4:4:4 size tax.
+    save_jpeg(sharp, OUT / "jezero-horizon.jpg", 90, subsampling=2)
 
-    gs = int(0.11 * h)
-    x0 = int(0.42 * w)
-    y0 = int(0.132 * h)
-    van.crop((x0, y0, x0 + gs, y0 + gs)).resize((1536, 1536), Image.Resampling.LANCZOS).save(
-        OUT / "jezero-ground.jpg", "JPEG", quality=76, optimize=True, progressive=True
-    )
+    box = ground_box(van)
+    ground = van.crop(box)
+    if ground.size != (GROUND_OUT, GROUND_OUT):
+        ground = ground.resize((GROUND_OUT, GROUND_OUT), Image.Resampling.LANCZOS)
+    # Native 2048 is already sharp; a light unsharp offsets GPU mip/aniso
+    # filtering on the grazing-angle disc without ballooning the JPEG.
+    ground = ground.filter(ImageFilter.UnsharpMask(radius=0.8, percent=90, threshold=3))
+    save_jpeg(ground, OUT / "jezero-ground.jpg", 80, subsampling=2)
 
 
 def prepare_globe(mdim: Image.Image) -> None:

@@ -9,8 +9,8 @@ Credit: **NASA/JPL-Caltech/ASU/MSSS**.
 
 | File | Source | What we shipped |
 | --- | --- | --- |
-| `jezero-horizon.jpg` | [PIA24663](https://photojournal.jpl.nasa.gov/catalog/PIA24663) Van Zyl Overlook 360° | Full-width 360 wrap, rover hardware cropped/inpainted, 4096×1024 (hill rows kept; both axes ≤ 4096 WebGL cap) |
-| `jezero-ground.jpg` | Same PIA24663 mosaic | Near-field rocks / soil, 1536² |
+| `jezero-horizon.jpg` | [PIA24663](https://photojournal.jpl.nasa.gov/catalog/PIA24663) Van Zyl Overlook 360° | Full-width 360 wrap, rover hardware cropped/inpainted, 4096×1024 JPEG q90 (hill rows kept; both axes ≤ 4096 WebGL cap) |
+| `jezero-ground.jpg` | Same PIA24663 mosaic | Native 2048² near-field yard (orig 23265×5165 crop at 8747,1400). Old 568² mid-distance patch was upscaled 2.7× to 1536 and looked soft. 2048 stays under the common 4096 WebGL cap; 4096² of this yard was 2.5–5 MB — too heavy for Pages. |
 
 One cylinder only. PIA24921 and PIA26378 are not composited as extra panels —
 those mismatched horizon heights were the visible seam.
@@ -27,6 +27,8 @@ Credit: **NASA/JPL/USGS**.
 | `mars-bump.jpg` | Derived from the same mosaic luminance | High-pass bump for dusty relief |
 
 Regenerate with `python3 scripts/prepare-mars-textures.py` (needs Pillow + NumPy).
+The surface loader keeps mipmaps + max anisotropy on the ground disc (grazing
+view) and disables mipmaps on the horizon strip (thin ridge rows).
 
 These JPEGs are NASA / USGS public-domain imagery. They are **not** covered by
 the repository MIT license. Credit NASA/JPL/USGS (globe) and
