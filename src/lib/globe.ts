@@ -1,6 +1,6 @@
 import { JEZERO } from "./jezero";
 import type { Vec3 } from "./math";
-import { KM_PER_AU, normalize, rad } from "./math";
+import { KM_PER_AU, dot, normalize, rad } from "./math";
 
 /** Jezero as a unit vector in Mars body-fixed (IAU +X Airy-0, +Z north). */
 export function jezeroUnitFixed(): Vec3 {
@@ -163,16 +163,124 @@ export function orbitSkyPosition(fixed: Vec3, distAu: number, kind: OrbitSkyKind
 }
 
 /**
- * Apparent angular size (radians-ish scale vs camera distance).
- * Closer shells read larger; the Sun and Earth stay a bit more present.
+ * Apparent angular size vs camera distance. Large enough that NASA maps
+ * read as miniature globes; still much smaller than Mars in the frame.
  */
-export function orbitBodyAngularSize(kind: OrbitSkyKind, distAu: number): number {
-  if (kind === "satellite") return 0.0036;
-  if (kind === "sun") return 0.013;
-  if (kind === "earth") return 0.0082;
+const ORBIT_BODY_ANG: Record<string, number> = {
+  sun: 0.028,
+  jupiter: 0.024,
+  saturn: 0.017,
+  earth: 0.019,
+  venus: 0.0165,
+  mercury: 0.013,
+  phobos: 0.0054,
+  deimos: 0.0046,
+};
+
+export function orbitBodyAngularSize(kind: OrbitSkyKind, distAu: number, id?: string): number {
+  if (id && ORBIT_BODY_ANG[id] != null) {
+    if (kind === "planet" && (id === "mercury" || id === "venus")) {
+      const r = orbitSkyDistance(distAu, kind);
+      const t = clamp01((r - ORBIT_SKY_NEAR) / (ORBIT_SKY_FAR - ORBIT_SKY_NEAR));
+      return ORBIT_BODY_ANG[id]! * (1 - 0.18 * t);
+    }
+    return ORBIT_BODY_ANG[id]!;
+  }
+  if (kind === "satellite") return 0.0048;
+  if (kind === "sun") return 0.028;
+  if (kind === "earth") return 0.019;
   const r = orbitSkyDistance(distAu, kind);
   const t = clamp01((r - ORBIT_SKY_NEAR) / (ORBIT_SKY_FAR - ORBIT_SKY_NEAR));
-  return 0.007 - 0.0032 * t;
+  return 0.015 - 0.0055 * t;
+}
+
+/** Saturn ring radii in units of the globe mesh (sphere radius 1). */
+export const SATURN_RING_INNER = 1.11;
+export const SATURN_RING_OUTER = 2.32;
+
+/** Radial U for a ring strip texture (u = 0 at inner edge). */
+export function saturnRingRadialUv(
+  x: number,
+  y: number,
+  inner = SATURN_RING_INNER,
+  outer = SATURN_RING_OUTER,
+): number {
+  return clamp01((Math.hypot(x, y) - inner) / (outer - inner));
+}
+
+export type Quat = { x: number; y: number; z: number; w: number };
+
+/** Unit quaternion rotating `from` onto `to`. */
+export function quatFromTo(from: Vec3, to: Vec3): Quat {
+  const a = normalize(from);
+  const b = normalize(to);
+  const d = dot(a, b);
+  if (d >= 0.999999) return { x: 0, y: 0, z: 0, w: 1 };
+  if (d <= -0.999999) {
+    const ortho = Math.abs(a.x) < 0.9 ? { x: 1, y: 0, z: 0 } : { x: 0, y: 1, z: 0 };
+    const c = normalize({
+      x: a.y * ortho.z - a.z * ortho.y,
+      y: a.z * ortho.x - a.x * ortho.z,
+      z: a.x * ortho.y - a.y * ortho.x,
+    });
+    return { x: c.x, y: c.y, z: c.z, w: 0 };
+  }
+  const cx = a.y * b.z - a.z * b.y;
+  const cy = a.z * b.x - a.x * b.z;
+  const cz = a.x * b.y - a.y * b.x;
+  const w = 1 + d;
+  const n = Math.hypot(cx, cy, cz, w) || 1;
+  return { x: cx / n, y: cy / n, z: cz / n, w: w / n };
+}
+
+/** Align mesh +Y (Three.js sphere north) with a body-fixed pole already in Three.js axes. */
+export function quatAlignYTo(poleThree: Vec3): Quat {
+  return quatFromTo({ x: 0, y: 1, z: 0 }, poleThree);
+}
+
+export function rotateByQuat(q: Quat, v: Vec3): Vec3 {
+  const ux = q.x;
+  const uy = q.y;
+  const uz = q.z;
+  const tx = 2 * (uy * v.z - uz * v.y);
+  const ty = 2 * (uz * v.x - ux * v.z);
+  const tz = 2 * (ux * v.y - uy * v.x);
+  return {
+    x: v.x + q.w * tx + (uy * tz - uz * ty),
+    y: v.y + q.w * ty + (uz * tx - ux * tz),
+    z: v.z + q.w * tz + (ux * ty - uy * tx),
+  };
+}
+
+export type OrbitBodyLook = {
+  roughness: number;
+  metalness: number;
+  emissive: number;
+  unlit: boolean;
+  rings: boolean;
+  atmos: "earth" | "venus" | "sun" | null;
+};
+
+export function orbitBodyLook(id: string, kind: OrbitSkyKind): OrbitBodyLook {
+  if (kind === "sun" || id === "sun") {
+    return { roughness: 1, metalness: 0, emissive: 1, unlit: true, rings: false, atmos: "sun" };
+  }
+  if (id === "earth") {
+    return { roughness: 0.52, metalness: 0.06, emissive: 0.16, unlit: false, rings: false, atmos: "earth" };
+  }
+  if (id === "venus") {
+    return { roughness: 0.72, metalness: 0.02, emissive: 0.14, unlit: false, rings: false, atmos: "venus" };
+  }
+  if (id === "jupiter") {
+    return { roughness: 0.78, metalness: 0.02, emissive: 0.14, unlit: false, rings: false, atmos: null };
+  }
+  if (id === "saturn") {
+    return { roughness: 0.8, metalness: 0.03, emissive: 0.14, unlit: false, rings: true, atmos: null };
+  }
+  if (kind === "satellite") {
+    return { roughness: 0.95, metalness: 0, emissive: 0.1, unlit: false, rings: false, atmos: null };
+  }
+  return { roughness: 0.88, metalness: 0.02, emissive: 0.12, unlit: false, rings: false, atmos: null };
 }
 
 /** True when Mars sits between the camera and a sky body. */
@@ -192,6 +300,60 @@ export const GLOBE_SOURCES = [
     title: "Mars Viking MDIM 2.1 colorized global mosaic",
     url: "https://astrogeology.usgs.gov/search/map/mars_viking_colorized_global_mosaic_232m",
     role: "orbit albedo + derived bump",
+  },
+] as const;
+
+export const PLANET_CREDIT = "NASA / USGS / Solar System Scope";
+
+export const PLANET_SOURCES = [
+  {
+    id: "sun",
+    title: "Solar photosphere wrap (NASA-based)",
+    url: "https://www.solarsystemscope.com/textures/",
+    credit: "Solar System Scope (CC BY 4.0)",
+    role: "orbit-sky photosphere",
+  },
+  {
+    id: "mercury",
+    title: "MESSENGER MDIS global mosaic",
+    url: "https://commons.wikimedia.org/wiki/File:Mercury_MESSENGER_MDIS_Basemap_MD3Color_Mosaic_Global_32ppd.jpg",
+    credit: "NASA/JHUAPL/Carnegie",
+    role: "orbit-sky albedo",
+  },
+  {
+    id: "venus",
+    title: "Magellan cylindrical radar map",
+    url: "https://commons.wikimedia.org/wiki/File:Cylindrical_Map_of_Venus.jpg",
+    credit: "NASA/JPL",
+    role: "orbit-sky albedo",
+  },
+  {
+    id: "earth",
+    title: "NASA Blue Marble + cloud layer",
+    url: "https://visibleearth.nasa.gov/images/57752/blue-marble-next-generation",
+    credit: "NASA GSFC",
+    role: "orbit-sky albedo",
+  },
+  {
+    id: "jupiter",
+    title: "Cassini cylindrical map (PIA07782)",
+    url: "https://photojournal.jpl.nasa.gov/catalog/PIA07782",
+    credit: "NASA/JPL/SSI",
+    role: "orbit-sky albedo",
+  },
+  {
+    id: "saturn",
+    title: "Saturn globe + ring strip (NASA-based)",
+    url: "https://www.solarsystemscope.com/textures/",
+    credit: "Solar System Scope (CC BY 4.0)",
+    role: "orbit-sky albedo and rings",
+  },
+  {
+    id: "phobos",
+    title: "Phobos Viking mosaic (DLR control)",
+    url: "https://commons.wikimedia.org/wiki/File:Phobos_Viking_Mosaic_DLRcontrol_7200.jpg",
+    credit: "NASA/JPL / PDS / Phil Stooke",
+    role: "orbit-sky albedo (Deimos toned from the same mosaic)",
   },
 ] as const;
 
