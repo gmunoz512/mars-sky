@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, type MutableRefObject } from "react";
 import * as THREE from "three";
 import albedoUrl from "../assets/mars/mars-albedo.jpg";
 import bumpUrl from "../assets/mars/mars-bump.jpg";
@@ -39,7 +39,7 @@ type Props = {
   ls: number;
   sunFixed: Vec3;
   orbitBodies: OrbitBody[];
-  approach: number;
+  approachRef: MutableRefObject<number>;
   className?: string;
   onEnterSurface: () => void;
 };
@@ -113,19 +113,17 @@ function makeSaturnRingGeometry(): THREE.RingGeometry {
   return geo;
 }
 
-export function GlobeView({ ls, sunFixed, orbitBodies, approach, className, onEnterSurface }: Props) {
+export function GlobeView({ ls, sunFixed, orbitBodies, approachRef, className, onEnterSurface }: Props) {
   const hostRef = useRef<HTMLDivElement>(null);
   const overlayRef = useRef<HTMLDivElement>(null);
   const sunRef = useRef(sunFixed);
   const bodiesRef = useRef(orbitBodies);
-  const approachRef = useRef(approach);
   const onEnterRef = useRef(onEnterSurface);
   const mapRef = useRef<THREE.CanvasTexture | null>(null);
   const albedoSrcRef = useRef<CanvasImageSource | null>(null);
   const lsRef = useRef(ls);
   sunRef.current = sunFixed;
   bodiesRef.current = orbitBodies;
-  approachRef.current = approach;
   onEnterRef.current = onEnterSurface;
   lsRef.current = ls;
 

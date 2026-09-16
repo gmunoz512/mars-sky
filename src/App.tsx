@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { DatePicker } from "./components/DatePicker";
 import { GlobeView } from "./components/GlobeView";
 import { ScaleToggle } from "./components/ScaleToggle";
@@ -15,6 +15,7 @@ import {
   parseShareSearch,
 } from "./lib/share";
 import { computeSky } from "./lib/sky";
+import { preloadSurfaceTextures } from "./lib/surfaceTextures";
 
 const boot =
   typeof window === "undefined"
@@ -25,9 +26,38 @@ export default function App() {
   const [date, setDate] = useState(boot.date);
   const [lookAt, setLookAt] = useState<SkyLookAt | null>(null);
   const sky = useMemo(() => computeSky(date), [date]);
-  const { scale, approach, busy, goSurface, goOrbit, setScaleExplicit } = useScale(boot.view);
+  const skyReady = useRef(false);
+  const skyWaiters = useRef<Array<() => void>>([]);
+
+  const onSkyReady = useCallback(() => {
+    skyReady.current = true;
+    const waiters = skyWaiters.current.splice(0);
+    for (const fn of waiters) fn();
+  }, []);
+
+  const prepareSurface = useCallback(async () => {
+    await preloadSurfaceTextures();
+    if (skyReady.current) return;
+    await new Promise<void>((resolve) => {
+      let settled = false;
+      const done = () => {
+        if (settled) return;
+        settled = true;
+        resolve();
+      };
+      const timer = window.setTimeout(done, 3000);
+      skyWaiters.current.push(() => {
+        window.clearTimeout(timer);
+        done();
+      });
+    });
+  }, []);
+
+  const { scale, approachRef, busy, skyMounted, goSurface, goOrbit, setScaleExplicit } = useScale(
+    boot.view,
+    prepareSurface,
+  );
   const onSurface = scale === "surface";
-  const showSky = onSurface || approach > 0.62;
   const shareState = { date, view: onSurface ? ("surface" as const) : ("orbit" as const) };
   const earth = sky.bodies.find((b) => b.kind === "earth") ?? null;
   const moons = sky.bodies.filter((b) => b.kind === "satellite");
@@ -35,6 +65,14 @@ export default function App() {
   const onLook = (target: SkyLookTarget) => {
     setLookAt({ az: target.az, alt: target.alt, nonce: Date.now() });
   };
+
+  useEffect(() => {
+    void preloadSurfaceTextures();
+  }, []);
+
+  useEffect(() => {
+    if (!skyMounted) skyReady.current = false;
+  }, [skyMounted]);
 
   useEffect(() => {
     const onWheel = (e: WheelEvent) => {
@@ -73,13 +111,13 @@ export default function App() {
           ls={sky.ls}
           sunFixed={sky.sunFixed}
           orbitBodies={sky.orbitBodies}
-          approach={approach}
+          approachRef={approachRef}
           className="h-full w-full"
           onEnterSurface={goSurface}
         />
       </div>
 
-      {showSky && (
+      {skyMounted && (
         <div
           className={`absolute inset-0 transition-opacity duration-700 ${
             onSurface ? "opacity-100" : "pointer-events-none opacity-0"
@@ -90,6 +128,7 @@ export default function App() {
             mode="look"
             lookAt={lookAt}
             className="h-full w-full"
+            onReady={onSkyReady}
           />
         </div>
       )}

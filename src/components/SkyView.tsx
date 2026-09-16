@@ -1,9 +1,8 @@
 import { useEffect, useRef } from "react";
 import * as THREE from "three";
-import groundUrl from "../assets/mars/jezero-ground.jpg";
-import horizonUrl from "../assets/mars/jezero-horizon.jpg";
 import type { SkyLabel, SkyModel, SkyStar } from "../lib/sky";
 import { fitRendererToHost } from "../lib/renderer";
+import { preloadSurfaceTextures } from "../lib/surfaceTextures";
 import {
   HORIZON_EYE_Y,
   HORIZON_HEIGHT,
@@ -26,6 +25,7 @@ type Props = {
   mode: Mode;
   className?: string;
   lookAt?: SkyLookAt | null;
+  onReady?: () => void;
 };
 
 type LabelEl = {
@@ -79,13 +79,15 @@ function fillStarGeometry(stars: SkyStar[]): THREE.BufferGeometry {
   return geo;
 }
 
-export function SkyView({ sky, mode, className, lookAt }: Props) {
+export function SkyView({ sky, mode, className, lookAt, onReady }: Props) {
   const hostRef = useRef<HTMLDivElement>(null);
   const overlayRef = useRef<HTMLDivElement>(null);
   const applyRef = useRef<(model: SkyModel) => void>(() => undefined);
   const lookRef = useRef<(target: SkyLookAt) => void>(() => undefined);
+  const onReadyRef = useRef(onReady);
   const modeRef = useRef(mode);
   modeRef.current = mode;
+  onReadyRef.current = onReady;
 
   useEffect(() => {
     const host = hostRef.current;
@@ -159,23 +161,26 @@ export function SkyView({ sky, mode, className, lookAt }: Props) {
     scene.add(skyDome);
 
     const photo: { dispose: () => void } = { dispose() {} };
-    const loader = new THREE.TextureLoader();
     let cancelled = false;
-    void Promise.all([loader.loadAsync(horizonUrl), loader.loadAsync(groundUrl)]).then(
-      ([horizonRaw, groundRaw]) => {
-        if (cancelled) {
-          horizonRaw.dispose();
-          groundRaw.dispose();
-          return;
-        }
+    let readySent = false;
+    const signalReady = () => {
+      if (readySent || cancelled) return;
+      readySent = true;
+      onReadyRef.current?.();
+    };
+
+    void (async () => {
+      try {
+        const maps = await preloadSurfaceTextures();
+        if (cancelled) return;
         const aniso = renderer.capabilities.getMaxAnisotropy();
 
-        const groundTex = fadeGroundRim(groundRaw);
-        groundRaw.dispose();
+        const groundTex = new THREE.CanvasTexture(maps.ground);
+        groundTex.colorSpace = THREE.SRGBColorSpace;
         configureGroundMap(groundTex, aniso);
 
-        const horizonTex = fadePhoto(horizonRaw, { top: 0.06 });
-        horizonRaw.dispose();
+        const horizonTex = new THREE.CanvasTexture(maps.horizon);
+        horizonTex.colorSpace = THREE.SRGBColorSpace;
         configureHorizonMap(horizonTex);
 
         const groundGeo = buildPhotoGroundGeometry();
@@ -205,8 +210,18 @@ export function SkyView({ sky, mode, className, lookAt }: Props) {
           groundTex.dispose();
           horizonTex.dispose();
         };
-      },
-    );
+
+        renderer.compile(scene, camera);
+        renderer.render(scene, camera);
+        await new Promise<number>((resolve) => requestAnimationFrame(resolve));
+        if (cancelled) return;
+        renderer.render(scene, camera);
+        signalReady();
+      } catch (err) {
+        console.error("surface textures failed to load", err);
+        signalReady();
+      }
+    })();
 
     const compassSprites: THREE.Sprite[] = [];
     for (const c of [
@@ -452,11 +467,6 @@ export function SkyView({ sky, mode, className, lookAt }: Props) {
   );
 }
 
-function smooth01(t: number): number {
-  const u = Math.min(1, Math.max(0, t));
-  return u * u * (3 - 2 * u);
-}
-
 /** Floor plane: mipmaps + anisotropy so a grazing view stays sharp. */
 function configureGroundMap(tex: THREE.Texture, anisotropy: number): void {
   tex.generateMipmaps = true;
@@ -477,70 +487,6 @@ function configureHorizonMap(tex: THREE.Texture): void {
   tex.wrapS = THREE.RepeatWrapping;
   tex.wrapT = THREE.ClampToEdgeWrapping;
   tex.needsUpdate = true;
-}
-
-/** Fade daylight sky (and optional side edges) so photos blend into the midnight sky. */
-function fadePhoto(tex: THREE.Texture, opts?: { top?: number; side?: number }): THREE.CanvasTexture {
-  const img = tex.image as HTMLImageElement | ImageBitmap;
-  const w = img.width;
-  const h = img.height;
-  const canvas = document.createElement("canvas");
-  canvas.width = w;
-  canvas.height = h;
-  const ctx = canvas.getContext("2d")!;
-  ctx.drawImage(img as CanvasImageSource, 0, 0);
-  const data = ctx.getImageData(0, 0, w, h);
-  const top = opts?.top ?? 0.2;
-  const side = opts?.side ?? 0;
-  // Only walk the fade band — the ridge/terrain rows stay alpha 255 so
-  // distant hills are not softened by a full-image getImageData pass.
-  const yFade = side > 0 ? h : Math.min(h, Math.ceil(top * h) + 1);
-  for (let y = 0; y < yFade; y += 1) {
-    const ty = y / Math.max(1, h - 1);
-    const ay = ty < top ? smooth01(ty / top) : 1;
-    for (let x = 0; x < w; x += 1) {
-      let a = ay;
-      if (side > 0) {
-        const tx = x / Math.max(1, w - 1);
-        a *= smooth01(tx / side) * smooth01((1 - tx) / side);
-      }
-      data.data[(y * w + x) * 4 + 3] = Math.round(255 * a);
-    }
-  }
-  ctx.putImageData(data, 0, 0);
-  const out = new THREE.CanvasTexture(canvas);
-  out.colorSpace = THREE.SRGBColorSpace;
-  out.wrapS = THREE.ClampToEdgeWrapping;
-  out.needsUpdate = true;
-  return out;
-}
-
-/** Soften the disc rim so it cannot read as a circular seam under the wrap. */
-function fadeGroundRim(tex: THREE.Texture): THREE.CanvasTexture {
-  const img = tex.image as HTMLImageElement | ImageBitmap;
-  const w = img.width;
-  const h = img.height;
-  const canvas = document.createElement("canvas");
-  canvas.width = w;
-  canvas.height = h;
-  const ctx = canvas.getContext("2d")!;
-  ctx.drawImage(img as CanvasImageSource, 0, 0);
-  const data = ctx.getImageData(0, 0, w, h);
-  const cx = (w - 1) * 0.5;
-  const cy = (h - 1) * 0.5;
-  const maxR = Math.hypot(cx, cy);
-  for (let y = 0; y < h; y += 1) {
-    for (let x = 0; x < w; x += 1) {
-      const t = Math.hypot(x - cx, y - cy) / maxR;
-      const a = t < 0.55 ? 1 : t > 0.98 ? 0 : 1 - smooth01((t - 0.55) / 0.43);
-      data.data[(y * w + x) * 4 + 3] = Math.round(255 * a);
-    }
-  }
-  ctx.putImageData(data, 0, 0);
-  const out = new THREE.CanvasTexture(canvas);
-  out.colorSpace = THREE.SRGBColorSpace;
-  out.needsUpdate = true;
-  return out;
 }
 
 function makeHorizonArc(
