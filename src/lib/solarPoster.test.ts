@@ -11,7 +11,9 @@ import {
   longitudeSeparationDeg,
   orbitRadiusX,
   posterCaption,
+  posterFooterYs,
   posterLayout,
+  printedPosterLines,
   projectSolarPlanet,
 } from "./solarPoster";
 
@@ -27,6 +29,23 @@ describe("poster copy", () => {
     expect(formatPosterDate({ year: 2020, month: 11, day: 3 })).toBe("NOVEMBER 3, 2020");
     expect(formatJezeroCoords()).toMatch(/18\.445°N \/ 77\.451°E/);
   });
+
+  it("can omit the birthday date from printed poster copy", () => {
+    const date = { year: 2021, month: 2, day: 18 };
+    const hidden = posterCaption(date, { showBirthday: false });
+    expect(hidden.date).toBeNull();
+    expect(hidden.place).toBe(POSTER_PLACE);
+    expect(hidden.coords).toBe("18.445°N / 77.451°E");
+    expect(hidden.tagline).toEqual(POSTER_TAGLINE);
+
+    const shown = printedPosterLines(date);
+    const omitted = printedPosterLines(date, { showBirthday: false });
+    expect(shown).toContain("FEBRUARY 18, 2021");
+    expect(omitted).not.toContain("FEBRUARY 18, 2021");
+    expect(omitted.some((line) => /\d{4}/.test(line) || /FEBRUARY|JANUARY/.test(line))).toBe(false);
+    expect(omitted).toContain(POSTER_PLACE);
+    expect(omitted).toEqual(shown.filter((line) => line !== "FEBRUARY 18, 2021"));
+  });
 });
 
 describe("poster layout", () => {
@@ -39,6 +58,17 @@ describe("poster layout", () => {
     expect(orbitRadiusX(3, layout)).toBeGreaterThan(orbitRadiusX(2, layout));
     expect(orbitRadiusX(0, layout)).toBe(layout.innerRx);
     expect(orbitRadiusX(7, layout)).toBe(layout.outerRx);
+  });
+
+  it("shifts place and coords up when the birthday line is hidden", () => {
+    const layout = posterLayout(POSTER_WIDTH, POSTER_HEIGHT);
+    const shown = posterFooterYs(layout);
+    const hidden = posterFooterYs(layout, { showBirthday: false });
+    expect(shown.dateY).toBe(layout.dateY);
+    expect(hidden.dateY).toBeNull();
+    expect(hidden.placeY).toBe(layout.dateY);
+    expect(hidden.coordsY).toBe(layout.placeY);
+    expect(hidden.coordsY).toBeLessThan(layout.taglineY[0]);
   });
 });
 

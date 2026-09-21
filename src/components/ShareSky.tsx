@@ -10,7 +10,9 @@ import {
   canvasToJpegBlob,
   composeShareImage,
   downloadBlob,
+  readShowBirthdayPreference,
   shareImageFilename,
+  writeShowBirthdayPreference,
 } from "../lib/shareImage";
 import { outlineControlClass } from "./outlineControl";
 
@@ -24,12 +26,19 @@ export function ShareSky({ state }: Props) {
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [imageError, setImageError] = useState<string | null>(null);
   const [building, setBuilding] = useState(false);
+  const [showBirthday, setShowBirthday] = useState(readShowBirthdayPreference);
   const panelRef = useRef<HTMLDivElement>(null);
   const blobRef = useRef<Blob | null>(null);
   const titleId = useId();
+  const birthdayToggleId = useId();
   const copy = shareCardCopy(state.date);
   const url = shareHref(state);
   const filename = shareImageFilename(state.date);
+
+  const onShowBirthdayChange = (next: boolean) => {
+    setShowBirthday(next);
+    writeShowBirthdayPreference(next);
+  };
 
   useEffect(() => {
     if (!open) return;
@@ -74,7 +83,7 @@ export function ShareSky({ state }: Props) {
     void (async () => {
       try {
         if (cancelled) return;
-        const poster = await composeShareImage(state.date);
+        const poster = await composeShareImage(state.date, { showBirthday });
         const blob = await canvasToJpegBlob(poster);
         objectUrl = URL.createObjectURL(blob);
         if (cancelled) {
@@ -99,7 +108,7 @@ export function ShareSky({ state }: Props) {
       cancelled = true;
       if (objectUrl) URL.revokeObjectURL(objectUrl);
     };
-  }, [open, state.date]);
+  }, [open, state.date, showBirthday]);
 
   const onCopy = async () => {
     try {
@@ -156,7 +165,11 @@ export function ShareSky({ state }: Props) {
             {previewUrl ? (
               <img
                 src={previewUrl}
-                alt={`Solar system on ${formatShareHeadline(state.date)} from Jezero crater`}
+                alt={
+                  showBirthday
+                    ? `Solar system on ${formatShareHeadline(state.date)} from Jezero crater`
+                    : "Solar system from Jezero crater, birthday hidden"
+                }
                 className="mx-auto block max-h-80 w-full bg-black object-contain"
               />
             ) : (
@@ -165,6 +178,20 @@ export function ShareSky({ state }: Props) {
               </div>
             )}
           </div>
+
+          <label
+            htmlFor={birthdayToggleId}
+            className="mt-3 flex cursor-pointer items-center gap-2.5 text-[10px] font-medium uppercase tracking-[0.22em] text-ink/90"
+          >
+            <input
+              id={birthdayToggleId}
+              type="checkbox"
+              checked={showBirthday}
+              onChange={(e) => onShowBirthdayChange(e.target.checked)}
+              className="h-3.5 w-3.5 shrink-0 accent-rust"
+            />
+            Show birthday
+          </label>
 
           <div className="mt-4 flex flex-wrap gap-2">
             <button

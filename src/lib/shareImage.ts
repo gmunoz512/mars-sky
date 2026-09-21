@@ -1,9 +1,58 @@
-import { renderSolarPoster } from "./solarPoster";
+import { POSTER_HEIGHT, POSTER_WIDTH, renderSolarPoster, type PosterOptions } from "./solarPoster";
 import type { CivilDate } from "./sky";
 import { formatIsoDate } from "./share";
 
+export const SHOW_BIRTHDAY_STORAGE_KEY = "birthday-in-mars:show-birthday-on-poster";
+
 export function shareImageFilename(date: CivilDate): string {
   return `birthday-over-jezero-${formatIsoDate(date)}.jpg`;
+}
+
+function storageGet(storage: Pick<Storage, "getItem"> | null | undefined, key: string): string | null {
+  try {
+    return storage?.getItem(key) ?? null;
+  } catch {
+    return null;
+  }
+}
+
+function storageSet(storage: Pick<Storage, "setItem"> | null | undefined, key: string, value: string): void {
+  try {
+    storage?.setItem(key, value);
+  } catch {
+    /* private mode / quota */
+  }
+}
+
+export function posterPreferenceStorage(): Storage | null {
+  try {
+    if (typeof localStorage !== "undefined") return localStorage;
+  } catch {
+    /* ignore */
+  }
+  try {
+    if (typeof sessionStorage !== "undefined") return sessionStorage;
+  } catch {
+    /* ignore */
+  }
+  return null;
+}
+
+/** Default is show. Stored as "1" / "0". */
+export function readShowBirthdayPreference(
+  storage: Pick<Storage, "getItem"> | null = posterPreferenceStorage(),
+): boolean {
+  const raw = storageGet(storage, SHOW_BIRTHDAY_STORAGE_KEY);
+  if (raw === "0") return false;
+  if (raw === "1") return true;
+  return true;
+}
+
+export function writeShowBirthdayPreference(
+  show: boolean,
+  storage: Pick<Storage, "setItem"> | null = posterPreferenceStorage(),
+): void {
+  storageSet(storage, SHOW_BIRTHDAY_STORAGE_KEY, show ? "1" : "0");
 }
 
 async function waitForShareFonts(): Promise<void> {
@@ -23,9 +72,12 @@ async function waitForShareFonts(): Promise<void> {
   }
 }
 
-export async function composeShareImage(date: CivilDate): Promise<HTMLCanvasElement> {
+export async function composeShareImage(
+  date: CivilDate,
+  options?: PosterOptions,
+): Promise<HTMLCanvasElement> {
   await waitForShareFonts();
-  return renderSolarPoster(date);
+  return renderSolarPoster(date, POSTER_WIDTH, POSTER_HEIGHT, options);
 }
 
 export function canvasToJpegBlob(canvas: HTMLCanvasElement, quality = 0.93): Promise<Blob> {
