@@ -62,12 +62,24 @@ export type SolarSystem = {
   planets: SolarPlanet[];
 };
 
+export type PosterOptions = {
+  /** When false, the printed footer omits the birthday date. Default true. */
+  showBirthday?: boolean;
+};
+
 export type PosterCaption = {
   headline: readonly [string, string];
-  date: string;
+  /** Formatted birthday, or null when the date is hidden on the poster. */
+  date: string | null;
   place: string;
   coords: string;
   tagline: readonly [string, string];
+};
+
+export type PosterFooterYs = {
+  dateY: number | null;
+  placeY: number;
+  coordsY: number;
 };
 
 export type PosterLayout = {
@@ -103,14 +115,35 @@ export function formatJezeroCoords(): string {
   return `${lat}°${ns} / ${lon}°${ew}`;
 }
 
-export function posterCaption(date: CivilDate): PosterCaption {
+export function showBirthdayOnPoster(options?: PosterOptions): boolean {
+  return options?.showBirthday !== false;
+}
+
+export function posterCaption(date: CivilDate, options?: PosterOptions): PosterCaption {
   return {
     headline: POSTER_HEADLINE,
-    date: formatPosterDate(date),
+    date: showBirthdayOnPoster(options) ? formatPosterDate(date) : null,
     place: POSTER_PLACE,
     coords: formatJezeroCoords(),
     tagline: POSTER_TAGLINE,
   };
+}
+
+/** Lines actually inked on the poster, top to bottom. */
+export function printedPosterLines(date: CivilDate, options?: PosterOptions): string[] {
+  const copy = posterCaption(date, options);
+  const lines = [...copy.headline];
+  if (copy.date) lines.push(copy.date);
+  lines.push(copy.place, copy.coords, ...copy.tagline);
+  return lines;
+}
+
+/** Footer type positions. When the date is hidden, place/coords shift up one line. */
+export function posterFooterYs(layout: PosterLayout, options?: PosterOptions): PosterFooterYs {
+  if (showBirthdayOnPoster(options)) {
+    return { dateY: layout.dateY, placeY: layout.placeY, coordsY: layout.coordsY };
+  }
+  return { dateY: null, placeY: layout.dateY, coordsY: layout.placeY };
 }
 
 export function posterLayout(
@@ -423,8 +456,10 @@ function drawCaption(
   date: CivilDate,
   layout: PosterLayout,
   ink: string,
+  options?: PosterOptions,
 ) {
-  const copy = posterCaption(date);
+  const copy = posterCaption(date, options);
+  const footer = posterFooterYs(layout, options);
   const serif = `"Fraunces", "Times New Roman", serif`;
   ctx.fillStyle = ink;
 
@@ -436,9 +471,11 @@ function drawCaption(
   const bodySize = Math.round(layout.width * 0.0185);
   ctx.font = `400 ${bodySize}px ${serif}`;
   const track = bodySize * 0.34;
-  fillTrackedCenter(ctx, copy.date, layout.cx, layout.dateY, track);
-  fillTrackedCenter(ctx, copy.place, layout.cx, layout.placeY, track);
-  fillTrackedCenter(ctx, copy.coords, layout.cx, layout.coordsY, bodySize * 0.28);
+  if (copy.date && footer.dateY != null) {
+    fillTrackedCenter(ctx, copy.date, layout.cx, footer.dateY, track);
+  }
+  fillTrackedCenter(ctx, copy.place, layout.cx, footer.placeY, track);
+  fillTrackedCenter(ctx, copy.coords, layout.cx, footer.coordsY, bodySize * 0.28);
 
   const tagSize = Math.round(layout.width * 0.019);
   ctx.font = `italic 400 ${tagSize}px ${serif}`;
@@ -452,6 +489,7 @@ export function drawSolarPoster(
   width = POSTER_WIDTH,
   height = POSTER_HEIGHT,
   system: SolarSystem = computeSolarSystem(date),
+  options?: PosterOptions,
 ): PosterLayout {
   const layout = posterLayout(width, height);
   const ink = POSTER_INK;
@@ -462,7 +500,7 @@ export function drawSolarPoster(
   drawOrbits(ctx, layout, ink);
   drawSun(ctx, layout, ink);
   drawPlanets(ctx, system, layout, ink);
-  drawCaption(ctx, date, layout, ink);
+  drawCaption(ctx, date, layout, ink, options);
 
   ctx.strokeStyle = ink;
   ctx.globalAlpha = 0.85;
@@ -481,12 +519,13 @@ export function renderSolarPoster(
   date: CivilDate,
   width = POSTER_WIDTH,
   height = POSTER_HEIGHT,
+  options?: PosterOptions,
 ): HTMLCanvasElement {
   const canvas = document.createElement("canvas");
   canvas.width = width;
   canvas.height = height;
   const ctx = canvas.getContext("2d");
   if (!ctx) throw new Error("Could not draw the poster");
-  drawSolarPoster(ctx, date, width, height);
+  drawSolarPoster(ctx, date, width, height, computeSolarSystem(date), options);
   return canvas;
 }
