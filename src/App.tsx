@@ -25,6 +25,7 @@ const boot =
 export default function App() {
   const [date, setDate] = useState(boot.date);
   const [lookAt, setLookAt] = useState<SkyLookAt | null>(null);
+  const [shareOpen, setShareOpen] = useState(false);
   const sky = useMemo(() => computeSky(date), [date]);
   const skyReady = useRef(false);
   const skyWaiters = useRef<Array<() => void>>([]);
@@ -134,25 +135,43 @@ export default function App() {
         </div>
       )}
 
-      <header className="pointer-events-none absolute inset-x-0 top-0 z-10 flex items-start justify-between gap-4 p-5 sm:p-8">
+      {shareOpen && (
+        <div className="absolute inset-0 z-20 bg-dusk/80" aria-hidden="true" />
+      )}
+
+      <header
+        className={`pointer-events-none absolute inset-x-0 top-0 flex items-start justify-between gap-4 p-5 sm:p-8 ${
+          shareOpen ? "z-30" : "z-10"
+        }`}
+      >
         <div>
           <h1 className="font-serif text-xl tracking-tight sm:text-2xl">birthday in mars</h1>
           <p className="mt-1 text-[10px] font-medium uppercase tracking-[0.24em] text-mute">
             {JEZERO.name} · {JEZERO.rover}
           </p>
-          {onSurface && <SkyCallouts earth={earth} moons={moons} onLook={onLook} />}
+          {onSurface && !shareOpen && (
+            <SkyCallouts earth={earth} moons={moons} onLook={onLook} />
+          )}
         </div>
         <div className="pointer-events-auto flex flex-col items-end gap-2">
           {onSurface && (
             <>
-              <ShareSky state={shareState} />
-              <ScaleToggle value={scale} onChange={setScaleExplicit} disabled={busy} />
+              <ShareSky state={shareState} onOpenChange={setShareOpen} />
+              {!shareOpen && (
+                <ScaleToggle value={scale} onChange={setScaleExplicit} disabled={busy} />
+              )}
             </>
           )}
         </div>
       </header>
 
-      <div className="pointer-events-none absolute inset-x-0 bottom-0 z-10 bg-gradient-to-t from-dusk/65 via-dusk/18 to-transparent px-5 pb-5 pt-10 sm:px-8 sm:pb-7">
+      <div
+        className={`pointer-events-none absolute inset-x-0 bottom-0 z-10 bg-gradient-to-t from-dusk/65 via-dusk/18 to-transparent px-5 pb-5 pt-10 sm:px-8 sm:pb-7 ${
+          shareOpen ? "hidden" : ""
+        }`}
+        aria-hidden={shareOpen}
+        inert={shareOpen}
+      >
         <div className="pointer-events-auto w-full max-w-md">
           <p className="mb-3 text-[10px] font-medium uppercase tracking-[0.28em] text-mute">
             Birthday

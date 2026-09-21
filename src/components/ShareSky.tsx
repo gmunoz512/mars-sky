@@ -18,9 +18,10 @@ import { outlineControlClass } from "./outlineControl";
 
 type Props = {
   state: ShareState;
+  onOpenChange?: (open: boolean) => void;
 };
 
-export function ShareSky({ state }: Props) {
+export function ShareSky({ state, onOpenChange }: Props) {
   const [open, setOpen] = useState(false);
   const [status, setStatus] = useState<"idle" | "copied" | "saved" | "shared">("idle");
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
@@ -39,6 +40,11 @@ export function ShareSky({ state }: Props) {
     setShowBirthday(next);
     writeShowBirthdayPreference(next);
   };
+
+  useEffect(() => {
+    onOpenChange?.(open);
+    return () => onOpenChange?.(false);
+  }, [open, onOpenChange]);
 
   useEffect(() => {
     if (!open) return;
@@ -151,7 +157,7 @@ export function ShareSky({ state }: Props) {
         <div
           role="dialog"
           aria-labelledby={titleId}
-          className="absolute right-0 top-[calc(100%+0.75rem)] z-20 w-[min(24rem,calc(100vw-2.5rem))] border border-ink/20 bg-dusk/95 p-4 shadow-[0_12px_40px_rgba(0,0,0,0.45)] backdrop-blur-sm"
+          className="absolute right-0 top-[calc(100%+0.75rem)] z-20 w-[min(24rem,calc(100vw-2.5rem))] border border-ink/20 bg-dusk p-4 shadow-[0_12px_40px_rgba(0,0,0,0.45)]"
         >
           <p id={titleId} className="font-serif text-lg leading-snug tracking-tight text-ink">
             {copy.title}
