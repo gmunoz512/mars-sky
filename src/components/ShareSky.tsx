@@ -157,7 +157,7 @@ export function ShareSky({ state, onOpenChange }: Props) {
         <div
           role="dialog"
           aria-labelledby={titleId}
-          className="absolute right-0 top-[calc(100%+0.75rem)] z-20 w-[min(24rem,calc(100vw-2.5rem))] border border-ink/20 bg-dusk p-4 shadow-[0_12px_40px_rgba(0,0,0,0.45)]"
+          className="absolute right-0 top-[calc(100%+0.75rem)] z-20 max-h-[calc(100dvh-5.5rem)] w-[min(24rem,calc(100vw-2.5rem))] overflow-y-auto border border-ink/20 bg-dusk p-4 shadow-[0_12px_40px_rgba(0,0,0,0.45)]"
         >
           <p id={titleId} className="font-serif text-lg leading-snug tracking-tight text-ink">
             {copy.title}
@@ -167,7 +167,7 @@ export function ShareSky({ state, onOpenChange }: Props) {
             Jezero · solar system · save to photos
           </p>
 
-          <div className="mt-3 overflow-hidden border border-ink/15 bg-black">
+          <div className="mt-3 aspect-[3/4] overflow-hidden border border-ink/15 bg-black">
             {previewUrl ? (
               <img
                 src={previewUrl}
@@ -176,10 +176,10 @@ export function ShareSky({ state, onOpenChange }: Props) {
                     ? `Solar system on ${formatShareHeadline(state.date)} from Jezero crater`
                     : "Solar system from Jezero crater, birthday hidden"
                 }
-                className="mx-auto block max-h-80 w-full bg-black object-contain"
+                className="block h-full w-full bg-black object-cover"
               />
             ) : (
-              <div className="flex h-44 items-center justify-center px-4 text-center text-[11px] leading-relaxed text-mute">
+              <div className="flex h-full items-center justify-center px-4 text-center text-[11px] leading-relaxed text-mute">
                 {building ? "Drawing the sky…" : (imageError ?? "No image yet.")}
               </div>
             )}
